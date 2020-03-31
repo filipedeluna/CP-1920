@@ -132,6 +132,7 @@ void testGather(void *src, size_t n, size_t size) {
   printTYPE(dest, nFilter, __FUNCTION__);
 
   free(dest);
+  free(filter);
 }
 
 void testScatter(void *src, size_t n, size_t size) {

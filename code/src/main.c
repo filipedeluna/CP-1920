@@ -47,7 +47,6 @@ int main(int argc, char *argv[]) {
   printf("Initializing SRC array\n");
   TYPE *src = malloc(TYPE_SIZE * args.iterations);
 
-
   for (int i = 0; i < args.iterations; i++) {
     if (strcmp(TYPE_NAME, "int") == 0) {
       src[i] = (TYPE) (drand48() * INT_MAX);
@@ -88,6 +87,8 @@ int main(int argc, char *argv[]) {
     if (DEBUG_MODE)
       printf("\n\n");
   }
+
+  free(src);
 
   return 0;
 }

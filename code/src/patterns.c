@@ -15,9 +15,6 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
 
   for (int i = 0; i < (int) nJob; i++)
     worker(&d[i * sizeJob], &s[i * sizeJob]);
-
-  free(d);
-  free(s);
 }
 
 void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -34,9 +31,6 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
     for (int i = 1; i < (int) nJob; i++)
       worker(&d[0], &d[0], &s[i * sizeJob]);
   }
-
-  free(d);
-  free(s);
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -53,9 +47,6 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     for (int i = 1; i < (int) nJob; i++)
       worker(&d[i * sizeJob], &d[(i - 1) * sizeJob], &s[i * sizeJob]);
   }
-
-  free(d);
-  free(s);
 }
 
 int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
@@ -77,9 +68,6 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
     }
   }
 
-  free(d);
-  free(s);
-
   return pos;
 }
 
@@ -99,9 +87,6 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
     assert (filter[i] < (int) nJob);
     memcpy(&d[i * sizeJob], &s[filter[i] * sizeJob], sizeJob);
   }
-
-  free(d);
-  free(s);
 }
 
 void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
@@ -119,9 +104,6 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
     assert (filter[i] < (int) nJob);
     memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
-
-  free(d);
-  free(s);
 }
 
 void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
@@ -143,9 +125,6 @@ void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerL
       workerList[j](&d[i * sizeJob], &d[i * sizeJob]);
     }
   }
-
-  free(d);
-  free(s);
 }
 
 void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
