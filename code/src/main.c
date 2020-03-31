@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
     end = wctime();
 
-    printf("%s:\t%8ld\tmicroseconds\n", testNames[args.test_id - 1], end - start);
+    printf("%s:\t%8ld\tmilliseconds\n", testNames[args.test_id - 1], (end - start) / 1000);
 
     if (DEBUG_MODE)
       printf("\n\n");
