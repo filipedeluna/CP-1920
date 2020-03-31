@@ -1,14 +1,10 @@
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "patterns.h"
 
-#include "patterns.h"
 #include "debug.h"
-#include "unit.h"
+#include "args.h"
 
-
-#define TYPE double
 #define FMT "%lf"
 
 //=======================================================

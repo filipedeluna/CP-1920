@@ -1,7 +1,6 @@
 #ifndef __PATTERNS_H
 #define __PATTERNS_H
 
-
 void map(
     void *dest,           // Target array
     void *src,            // Source array

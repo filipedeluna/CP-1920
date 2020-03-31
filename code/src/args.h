@@ -1,3 +1,9 @@
+#include "argp.h"
+
+// Change this variable to change the datatype being used for operations
+#define TYPE double
+#define TYPE_SIZE sizeof(TYPE)
+
 // Argument structure
 typedef struct argp_args {
     int debug_mode;

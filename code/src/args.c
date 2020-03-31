@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include "argp.h"
 #include "args.h"
 
 // Util
@@ -38,7 +37,6 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
   return 0;
 }
 
-// Options
 struct argp_option argp_options[] = {
     {
         "debug",
@@ -64,7 +62,7 @@ struct argp_option argp_options[] = {
         "Number of threads to use. Must be a positive integer",
         0
     },
-    {   0}
+    {0}
 };
 
 // Util

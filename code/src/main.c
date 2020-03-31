@@ -4,14 +4,11 @@
 
 #include <time.h>
 #include <sys/time.h>
-#include <argp.h>
 
+#include "args.h"
 #include "unit.h"
 #include "debug.h"
-#include "args.h"
 #include "omp.h"
-
-#define TYPE double
 
 // You may replace this with opm_get_wtime() //TODO
 static long wall_clock_time(void) {
@@ -47,7 +44,7 @@ int main(int argc, char *argv[]) {
 
   // Initialize src array for all iterations
   printf("Initializing SRC array\n");
-  TYPE *src = malloc(sizeof(*src) * args.iterations);
+  TYPE *src = malloc(TYPE_SIZE * args.iterations);
 
   for (int i = 0; i < args.iterations; i++)
     src[i] = drand48();
@@ -59,7 +56,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < nTestFunction; i++) {
     long start = wall_clock_time();
 
-    testFunction[i](src, args.iterations, sizeof(*src));
+    testFunction[i](src, args.iterations, TYPE_SIZE);
 
     long end = wall_clock_time();
 
