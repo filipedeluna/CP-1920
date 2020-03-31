@@ -13,6 +13,8 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
   char *d = dest;
   char *s = src;
 
+  #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d,s)
+  #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++)
     worker(&d[i * sizeJob], &s[i * sizeJob]);
 }

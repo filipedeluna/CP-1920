@@ -42,6 +42,7 @@ int main(int argc, char *argv[]) {
 
   // Setup OpenMP
   omp_set_num_threads(args.num_threads);
+  omp_set_dynamic(0);
 
   // Initialize src array for all iterations
   printf("Initializing SRC array\n");
@@ -82,7 +83,7 @@ int main(int argc, char *argv[]) {
 
     end = wctime();
 
-    printf("%s:\t%8ld\tmilliseconds\n", testNames[args.test_id - 1], (end - start) / 1000);
+    printf("%s:\t%8ld\tmicroseconds\n", testNames[args.test_id - 1], end - start);
 
     if (DEBUG_MODE)
       printf("\n\n");
