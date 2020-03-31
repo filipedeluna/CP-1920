@@ -25,3 +25,7 @@ make
 
 * Repo owner or admin
 João Lourenço <joao.lourenco@fct.unl.pt>
+
+### Why another project ###
+Because we messed up and didn't fork the original the first time.
+
