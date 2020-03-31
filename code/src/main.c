@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-
-#include <time.h>
 #include <sys/time.h>
+#include <string.h>
+#include <unistd.h>
+#include <time.h>
 
 #include "args.h"
 #include "unit.h"
@@ -46,12 +46,18 @@ int main(int argc, char *argv[]) {
   printf("Initializing SRC array\n");
   TYPE *src = malloc(TYPE_SIZE * args.iterations);
 
-  for (int i = 0; i < args.iterations; i++)
-    src[i] = drand48();
+  for (int i = 0; i < args.iterations; i++) {
+    if (strcmp(TYPE_NAME, "int") == 0) {
+      src[i] = (TYPE) (drand48() * INT_MAX);
+    } else if (strcmp(TYPE_NAME, "char") == 0) {
+      src[i] = (TYPE) (drand48() * CHAR_MAX);;
+    } else
+      src[i] = drand48();
+  }
 
   printf("Done!\n\n");
 
-  printDouble(src, args.iterations, "SRC");
+  printTYPE(src, args.iterations, "SRC");
 
   for (int i = 0; i < nTestFunction; i++) {
     long start = wall_clock_time();

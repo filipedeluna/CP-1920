@@ -2,7 +2,9 @@
 
 // Change this variable to change the datatype being used for operations
 #define TYPE double
-#define TYPE_SIZE sizeof(TYPE)
+#define TYPE_SIZE sizeof(TYPE) * 1
+#define TYPE_FORMAT "%lf"
+#define TYPE_NAME "double"
 
 // Argument structure
 typedef struct argp_args {

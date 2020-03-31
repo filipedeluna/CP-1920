@@ -7,4 +7,6 @@ void printDouble(const double *src, size_t n, const char *msg);
 
 void printInt(const int *src, size_t n, const char *msg);
 
+void printTYPE(void *src, size_t n, const char *msg);
+
 #endif
