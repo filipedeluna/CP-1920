@@ -9,8 +9,11 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
   assert (src != NULL);
   assert (worker != NULL);
 
+  char *d = dest;
+  char *s = src;
+
   for (int i = 0; i < (int) nJob; i++)
-    worker(&((char *) dest)[i * sizeJob], &((char *) src)[i * sizeJob]);
+    worker(&d[i * sizeJob], &s[i * sizeJob]);
 }
 
 void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -19,10 +22,13 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
   assert (src != NULL);
   assert (worker != NULL);
 
+  char *d = dest;
+  char *s = src;
+
   if (nJob > 0) {
-    memcpy(&((char *) dest)[0], &((char *) src)[0], sizeJob);
+    memcpy(&d[0], &s[0], sizeJob);
     for (int i = 1; i < (int) nJob; i++)
-      worker(&((char *) dest)[0], &((char *) dest)[0], &((char *) src)[i * sizeJob]);
+      worker(&d[0], &d[0], &s[i * sizeJob]);
   }
 
 }
@@ -33,10 +39,13 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   assert (src != NULL);
   assert (worker != NULL);
 
+  char *d = dest;
+  char *s = src;
+
   if (nJob > 1) {
-    memcpy(&((char *) dest)[0], &((char *) src)[0], sizeJob);
+    memcpy(&d[0], &s[0], sizeJob);
     for (int i = 1; i < (int) nJob; i++)
-      worker(&((char *) dest)[i * sizeJob], &((char *) dest)[(i - 1) * sizeJob], &((char *) src)[i * sizeJob]);
+      worker(&d[i * sizeJob], &d[(i - 1) * sizeJob], &s[i * sizeJob]);
   }
 }
 
@@ -48,10 +57,13 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   assert ((int) nJob >= 0);
   assert (sizeJob > 0);
 
+  char *d = dest;
+  char *s = src;
+
   int pos = 0;
   for (int i = 0; i < (int) nJob; i++) {
     if (filter[i]) {
-      memcpy(&((char *) dest)[pos * sizeJob], &((char *) src)[i * sizeJob], sizeJob);
+      memcpy(&d[pos * sizeJob], &s[i * sizeJob], sizeJob);
       pos++;
     }
   }
@@ -68,11 +80,12 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
   assert (sizeJob > 0);
   assert (nFilter >= 0);
 
-  (void) nJob; // TODO delete
+  char *d = dest;
+  char *s = src;
 
   for (int i = 0; i < nFilter; i++) {
     assert (filter[i] < (int) nJob);
-    memcpy(&((char *) dest)[i * sizeJob], &((char *) src)[filter[i] * sizeJob], sizeJob);
+    memcpy(&d[i * sizeJob], &s[filter[i] * sizeJob], sizeJob);
   }
 }
 
@@ -84,9 +97,12 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   assert ((int) nJob >= 0);
   assert (sizeJob > 0);
 
+  char *d = dest;
+  char *s = src;
+
   for (int i = 0; i < (int) nJob; i++) {
     assert (filter[i] < (int) nJob);
-    memcpy(&((char *) dest)[filter[i] * sizeJob], &((char *) src)[i * sizeJob], sizeJob);
+    memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
 }
 
@@ -98,12 +114,15 @@ void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerL
   assert ((int) nJob >= 0);
   assert (sizeJob > 0);
 
+  char *d = dest;
+  char *s = src;
+
   for (int i = 0; i < (int) nJob; i++) {
-    memcpy(&((char *) dest)[i * sizeJob], &((char *) src)[i * sizeJob], sizeJob);
+    memcpy(&d[i * sizeJob], &s[i * sizeJob], sizeJob);
 
     for (int j = 0; j < (int) nWorkers; j++) {
       assert (workerList[j] != NULL);
-      workerList[j](&((char *) dest)[i * sizeJob], &((char *) dest)[i * sizeJob]);
+      workerList[j](&d[i * sizeJob], &d[i * sizeJob]);
     }
   }
 }
