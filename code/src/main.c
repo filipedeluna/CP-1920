@@ -10,8 +10,10 @@
 #include "debug.h"
 #include "omp.h"
 
-// You may replace this with opm_get_wtime() //TODO
-static long wall_clock_time(void) {
+////////////////////////////////////////////////////////////////////////////////////////
+/// Get wall clock time as a double
+/// You may replace this with opm_get_wtime() // TODO?
+double wctime() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   return (long) tv.tv_sec * 1e6 + tv.tv_usec;
@@ -35,16 +37,16 @@ int main(int argc, char *argv[]) {
   if (args.debug_mode)
     DEBUG_MODE = 1;
 
+  srand48(time(NULL));
+  srand48(time(NULL));
+
   // Setup OpenMP
   omp_set_num_threads(args.num_threads);
-
-  // Generate random values to fill src array
-  srand(time(NULL));
-  srand48(time(NULL));
 
   // Initialize src array for all iterations
   printf("Initializing SRC array\n");
   TYPE *src = malloc(TYPE_SIZE * args.iterations);
+
 
   for (int i = 0; i < args.iterations; i++) {
     if (strcmp(TYPE_NAME, "int") == 0) {
@@ -59,13 +61,15 @@ int main(int argc, char *argv[]) {
 
   printTYPE(src, args.iterations, "SRC");
 
+  long start, end;
+
   if (args.test_id == 0) {
     for (int i = 0; i < nTestFunction; i++) {
-      long start = wall_clock_time();
+      start = wctime();
 
       testFunction[i](src, args.iterations, TYPE_SIZE);
 
-      long end = wall_clock_time();
+      end = wctime();
 
       printf("%s:\t%8ld\tmicroseconds\n", testNames[i], end - start);
 
@@ -73,11 +77,11 @@ int main(int argc, char *argv[]) {
         printf("\n\n");
     }
   } else {
-    long start = wall_clock_time();
+    start = wctime();
 
     testFunction[args.test_id - 1](src, args.iterations, TYPE_SIZE);
 
-    long end = wall_clock_time();
+    end = wctime();
 
     printf("%s:\t%8ld\tmicroseconds\n", testNames[args.test_id - 1], end - start);
 
