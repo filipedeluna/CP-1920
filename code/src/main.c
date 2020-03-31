@@ -4,67 +4,70 @@
 
 #include <time.h>
 #include <sys/time.h>
+#include <argp.h>
 
 #include "unit.h"
 #include "debug.h"
+#include "args.h"
+#include "omp.h"
 
 #define TYPE double
 
-
-// You may replace this with opm_get_wtime()
+// You may replace this with opm_get_wtime() //TODO
 static long wall_clock_time(void) {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return (long)tv.tv_sec * 1e6 + tv.tv_usec;
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (long) tv.tv_sec * 1e6 + tv.tv_usec;
 }
 
+// Global Argp Vars
+const char *argp_program_bug_address = "<f.luna@campus.fct.unl.pt> or <gl.batista@campus.fct.unl.pt>";
+const char *argp_program_version = "0.1";
 
+// Example documentation
+static const char *argp_doc = "Parallel Patterns with C and OpenMP - CP 2019.";
 
-int main(int argc, char* argv[]) {
-    int i, N;
-    
+int main(int argc, char *argv[]) {
+  // Set up argp and extract configs
+  struct argp argp = {argp_options, argp_option_parser, 0,
+                      argp_doc, 0, 0, 0};
 
-    int c;
-    while ((c = getopt (argc, argv, "d")) != -1)
-    switch (c) {
-        case 'd':
-            debug = 1; break;
-        default:
-            printf("Invalid option\n");
-            abort ();
-    }
-    argc -= optind;
-    argv += optind;
-    
-    if (argc != 1) {
-        printf("Usage: ./example N\n");
-        return -1;
-    }
+  argp_args args;
+  argp_parse(&argp, argc, argv, 0, 0, &args);
 
-    srand(time(NULL));
-    srand48(time(NULL));
+  if (args.debug_mode)
+    DEBUG_MODE = 1;
 
-    N = atol(argv[0]);
+  // Setup OpenMP
+  omp_set_num_threads(args.num_threads);
 
+  // Generate random values to fill src array
+  srand(time(NULL));
+  srand48(time(NULL));
 
-    printf ("Initializing SRC array\n");
-    TYPE *src = malloc (sizeof(*src) * N);
-    for (i = 0; i < N; i++)
-        src[i] = drand48();
-    printf ("Done!\n");
-    
-    printDouble (src, N, "SRC");
-    if (debug)
-        printf ("\n\n");
+  // Initialize src array for all iterations
+  printf("Initializing SRC array\n");
+  TYPE *src = malloc(sizeof(*src) * args.iterations);
 
-    for (int i = 0;  i < nTestFunction;  i++) {
-        long start = wall_clock_time();
-        testFunction[i] (src, N, sizeof(*src));
-        long end = wall_clock_time();
-        printf ("%s:\t%8ld\tmicroseconds\n", testNames[i], end-start);
-        if (debug)
-            printf ("\n\n");
-    }
+  for (int i = 0; i < args.iterations; i++)
+    src[i] = drand48();
 
-    return 0;
+  printf("Done!\n\n");
+
+  printDouble(src, args.iterations, "SRC");
+
+  for (int i = 0; i < nTestFunction; i++) {
+    long start = wall_clock_time();
+
+    testFunction[i](src, args.iterations, sizeof(*src));
+
+    long end = wall_clock_time();
+
+    printf("%s:\t%8ld\tmicroseconds\n", testNames[i], end - start);
+
+    if (DEBUG_MODE)
+      printf("\n\n");
+  }
+
+  return 0;
 }
