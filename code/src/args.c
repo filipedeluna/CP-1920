@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include "args.h"
+#include "unit.h"
 
 // Util
 int getInt(struct argp_state *state, char *arg, char *arg_name);
@@ -12,6 +13,12 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
     case 'd':
       args->debug_mode = 1;
       break;
+    case 'k':
+      args->test_id = getInt(state, arg, "test id");
+
+      if (args->test_id < 1 || args->test_id > nTestFunction)
+        argp_failure(state, 1, 0, "invalid test id. pick from 1 to %d", nTestFunction);
+      break;
     case 'i':
       args->iterations = getInt(state, arg, "number of iterations");
       break;
@@ -19,10 +26,10 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
       args->num_threads = getInt(state, arg, "number of threads");
       break;
     case ARGP_KEY_INIT:
-      args->iterations = 0;
       args->debug_mode = 0;
+      args->test_id = 0;
+      args->iterations = 0;
       args->num_threads = 1;
-
       break;
     case ARGP_KEY_END:
       if (args->iterations < 1)
@@ -43,7 +50,7 @@ struct argp_option argp_options[] = {
         'd',
         0,
         0,
-        "Use this flag to enable debug mode.",
+        "Use this flag to enable debug mode. Optional ID of test to run.",
         0
     },
     {
@@ -55,14 +62,22 @@ struct argp_option argp_options[] = {
         0
     },
     {
-        "iterations",
+        "threads",
         't',
         "NUM_THREADS",
         0,
         "Number of threads to use. Must be a positive integer",
         0
     },
-    {0}
+    {
+        "test_id",
+        'k',
+        "TEST_ID",
+        0,
+        "ID of test to run.",
+        0
+    },
+    {   0}
 };
 
 // Util

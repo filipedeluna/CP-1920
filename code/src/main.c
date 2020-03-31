@@ -59,14 +59,27 @@ int main(int argc, char *argv[]) {
 
   printTYPE(src, args.iterations, "SRC");
 
-  for (int i = 0; i < nTestFunction; i++) {
+  if (args.test_id == 0) {
+    for (int i = 0; i < nTestFunction; i++) {
+      long start = wall_clock_time();
+
+      testFunction[i](src, args.iterations, TYPE_SIZE);
+
+      long end = wall_clock_time();
+
+      printf("%s:\t%8ld\tmicroseconds\n", testNames[i], end - start);
+
+      if (DEBUG_MODE)
+        printf("\n\n");
+    }
+  } else {
     long start = wall_clock_time();
 
-    testFunction[i](src, args.iterations, TYPE_SIZE);
+    testFunction[args.test_id - 1](src, args.iterations, TYPE_SIZE);
 
     long end = wall_clock_time();
 
-    printf("%s:\t%8ld\tmicroseconds\n", testNames[i], end - start);
+    printf("%s:\t%8ld\tmicroseconds\n", testNames[args.test_id - 1], end - start);
 
     if (DEBUG_MODE)
       printf("\n\n");
