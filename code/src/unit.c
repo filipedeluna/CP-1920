@@ -72,7 +72,7 @@ void testMap(void *src, size_t n, size_t size) {
 
   map(dest, src, n, size, workerAddOne);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -82,7 +82,7 @@ void testReduce(void *src, size_t n, size_t size) {
 
   reduce(dest, src, n, size, workerAdd);
 
-  printTYPE(dest, 1, __FUNCTION__);
+  printTYPE(dest, 1, __func__);
 
   free(dest);
 }
@@ -92,7 +92,7 @@ void testScan(void *src, size_t n, size_t size) {
 
   scan(dest, src, n, size, workerAdd);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -110,7 +110,7 @@ void testPack(void *src, size_t n, size_t size) {
 
   printInt(filter, n, "filter");
 
-  printTYPE(dest, newN, __FUNCTION__);
+  printTYPE(dest, newN, __func__);
 
   free(filter);
   free(dest);
@@ -129,7 +129,7 @@ void testGather(void *src, size_t n, size_t size) {
 
   gather(dest, src, n, size, filter, nFilter);
 
-  printTYPE(dest, nFilter, __FUNCTION__);
+  printTYPE(dest, nFilter, __func__);
 
   free(dest);
   free(filter);
@@ -151,7 +151,7 @@ void testScatter(void *src, size_t n, size_t size) {
 
   scatter(dest, src, n, size, filter);
 
-  printTYPE(dest, nDest, __FUNCTION__);
+  printTYPE(dest, nDest, __func__);
 
   free(filter);
   free(dest);
@@ -170,7 +170,7 @@ void testPipeline(void *src, size_t n, size_t size) {
 
   pipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -180,7 +180,7 @@ void testFarm(void *src, size_t n, size_t size) {
 
   farm(dest, src, n, size, workerAddOne, 3);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
