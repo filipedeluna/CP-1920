@@ -39,4 +39,3 @@ void printTYPE(const TYPE *src, size_t n, const char *msg) {
     printf("\n-------------------------------\n");
   }
 }
-

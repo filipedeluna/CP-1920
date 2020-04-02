@@ -214,5 +214,3 @@ char *testNames[] = {
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);
-
-
