@@ -10,15 +10,6 @@
 #include "debug.h"
 #include "omp.h"
 
-////////////////////////////////////////////////////////////////////////////////////////
-/// Get wall clock time as a double
-/// You may replace this with opm_get_wtime() // TODO?
-double wctime() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (long) tv.tv_sec * 1e6 + tv.tv_usec;
-}
-
 // Global Argp Vars
 const char *argp_program_bug_address = "<f.luna@campus.fct.unl.pt> or <gl.batista@campus.fct.unl.pt>";
 const char *argp_program_version = "0.1";
@@ -61,29 +52,29 @@ int main(int argc, char *argv[]) {
 
   printTYPE(src, args.iterations, "SRC");
 
-  long start, end;
+  double start, end;
 
   if (args.test_id == 0) {
     for (int i = 0; i < nTestFunction; i++) {
-      start = wctime();
+      start = omp_get_wtime();
 
       testFunction[i](src, args.iterations, TYPE_SIZE);
 
-      end = wctime();
+      end = omp_get_wtime();
 
-      printf("%s:\t%8ld\tmicroseconds\n", testNames[i], end - start);
+      printf("%s:\t%.0lf microseconds\n", testNames[i], (end - start) * 1e6);
 
       if (DEBUG_MODE)
         printf("\n\n");
     }
   } else {
-    start = wctime();
+    start = omp_get_wtime();
 
     testFunction[args.test_id - 1](src, args.iterations, TYPE_SIZE);
 
-    end = wctime();
+    end = omp_get_wtime();
 
-    printf("%s:\t%8ld\tmicroseconds\n", testNames[args.test_id - 1], end - start);
+    printf("%s:\t%.0lf microseconds\n", testNames[args.test_id - 1], (end - start) * 1e6);
 
     if (DEBUG_MODE)
       printf("\n\n");
