@@ -28,8 +28,11 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
   char *d = dest;
   char *s = src;
 
-  if (nJob > 0) {
+  if(nJob > 0) {
     memcpy(&d[0], &s[0], sizeJob);
+
+    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d,s)
+    #pragma omp for
     for (int i = 1; i < (int) nJob; i++)
       worker(&d[0], &d[0], &s[i * sizeJob]);
   }
