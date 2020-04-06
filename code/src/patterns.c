@@ -20,22 +20,25 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
 }
 
 void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  /* To be implemented */
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
 
-  char *d = dest;
+  TYPE result = 0;
   char *s = src;
 
   if(nJob > 0) {
-    memcpy(&d[0], &s[0], sizeJob);
+    result = *((TYPE *) src);
 
-    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d,s)
-    #pragma omp for
-    for (int i = 1; i < (int) nJob; i++)
-      worker(&d[0], &d[0], &s[i * sizeJob]);
+    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s)
+    #pragma omp for reduction(+:result)
+    for (int i = 1; i < (int) nJob; i++) {
+      worker(&result, &result, &s[i * sizeJob]);
+    }
   }
+
+  *((TYPE *) dest) = result;
+
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
