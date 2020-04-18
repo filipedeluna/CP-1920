@@ -72,7 +72,7 @@ void testMap(void *src, size_t n, size_t size) {
 
   map(dest, src, n, size, workerAddOne);
 
-  printTYPE(dest, n, __func__);
+  printTYPE(dest, n, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(dest);
 }
@@ -92,7 +92,7 @@ void testScan(void *src, size_t n, size_t size) {
 
   scan(dest, src, n, size, workerAdd);
 
-  printTYPE(dest, n, __func__);
+  printTYPE(dest, n, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(dest);
 }
@@ -108,9 +108,9 @@ void testPack(void *src, size_t n, size_t size) {
 
   int newN = pack(dest, src, n, size, filter);
 
-  printInt(filter, n, "filter");
+  printInt(filter, n, "filter");//TODO isto demora muito tempo e pode ocultar speedup
 
-  printTYPE(dest, newN, __func__);
+  printTYPE(dest, newN, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(filter);
   free(dest);
@@ -125,11 +125,11 @@ void testGather(void *src, size_t n, size_t size) {
   for (int i = 0; i < nFilter; i++)
     filter[i] = rand() % n;
 
-  printInt(filter, nFilter, "filter");
+  printInt(filter, nFilter, "filter");//TODO isto demora muito tempo e pode ocultar speedup
 
   gather(dest, src, n, size, filter, nFilter);
 
-  printTYPE(dest, nFilter, __func__);
+  printTYPE(dest, nFilter, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(dest);
   free(filter);
@@ -147,11 +147,11 @@ void testScatter(void *src, size_t n, size_t size) {
   for (int i = 0; i < (int) n; i++)
     filter[i] = rand() % nDest;
 
-  printInt(filter, n, "filter");
+  printInt(filter, n, "filter");//TODO isto demora muito tempo e pode ocultar speedup
 
   scatter(dest, src, n, size, filter);
 
-  printTYPE(dest, nDest, __func__);
+  printTYPE(dest, nDest, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(filter);
   free(dest);

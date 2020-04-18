@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 
   printf("Done!\n\n");
 
-  printTYPE(src, args.iterations, "SRC");
+  printTYPE(src, args.iterations, "SRC");//TODO tirar quando se usa muitas iteracoes
 
   double start, end;
 
