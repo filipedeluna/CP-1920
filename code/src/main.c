@@ -38,7 +38,6 @@ int main(int argc, char *argv[]) {
 
   // Setup OpenMP
   omp_set_num_threads(args.num_threads);
-  omp_set_dynamic(0);
 
   // Initialize src array for all iterations
   printf("Initializing SRC array\n");
