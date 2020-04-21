@@ -1,6 +1,8 @@
 #ifndef __UNIT_H
 #define __UNIT_H
 
+extern int WEIGHTED_MODE;
+
 typedef void (*TESTFUNCTION)(void *, size_t, size_t);
 
 extern TESTFUNCTION testFunction[];

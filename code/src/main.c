@@ -30,6 +30,9 @@ int main(int argc, char *argv[]) {
   if (args.debug_mode)
     DEBUG_MODE = 1;
 
+  if (args.weighted)
+    WEIGHTED_MODE = 1;
+
   srand48(time(NULL));
   srand48(time(NULL));
 
@@ -76,7 +79,12 @@ int main(int argc, char *argv[]) {
 
     end = omp_get_wtime();
 
-    printf("%s:\t%.0lf microseconds\n", testNames[args.test_id - 1], (end - start) * 1e6);
+    double timeMs = (end - start) * 1e6;
+
+    if (timeMs > 10000)
+      printf("%s:\t%.0lf milliseconds\n", testNames[args.test_id - 1], timeMs / 1000);
+    else
+      printf("%s:\t%.0lf microseconds\n", testNames[args.test_id - 1], timeMs);
 
     if (DEBUG_MODE)
       printf("\n\n");

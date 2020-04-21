@@ -22,6 +22,9 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
     case 'i':
       args->iterations = getInt(state, arg, "number of iterations");
       break;
+    case 'w':
+      args->weighted = 1;
+      break;
     case 't':
       args->num_threads = getInt(state, arg, "number of threads");
       break;
@@ -29,13 +32,14 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
       args->debug_mode = 0;
       args->test_id = 0;
       args->iterations = 0;
+      args->weighted = 0;
       args->num_threads = 1;
       break;
     case ARGP_KEY_END:
       if (args->iterations < 1)
         argp_failure(state, 1, 0, "invalid number of iterations");
 
-      if (args->num_threads < 1 || args->num_threads > 16)
+      if (args->num_threads < 1)
         argp_failure(state, 1, 0, "invalid number of threads");
       break;
     default:
@@ -75,6 +79,14 @@ struct argp_option argp_options[] = {
         "TEST_ID",
         0,
         "ID of test to run.",
+        0
+    },
+    {
+        "weighted",
+        'w',
+        0,
+        0,
+        "Enable to add weight to worker functions.",
         0
     },
     {   0}

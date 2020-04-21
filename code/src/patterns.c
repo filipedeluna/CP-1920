@@ -110,7 +110,7 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
   #pragma omp for
   for (int i = 0; i < (int) nJob; i++) {
-    assert (filter[i] < (int) nJob);
+    // assert (filter[i] < (int) nJob);
     memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
 }
