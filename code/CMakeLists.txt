@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(main C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -std=gnu11")
+set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -ansi -pedantic -std=gnu11")
 set(CMAKE_C_FLAGS_DEBUG "-g")
 
 #set(CMAKE_BUILD_TYPE Release)

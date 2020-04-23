@@ -7,6 +7,14 @@
 
 #define FMT "%lf"
 
+int WEIGHTED_MODE = 0;
+
+// Add a bit of weight to worker functions
+void addWeight() {
+  for (int i = 0; i < 1000; i++)
+    (void) i;
+}
+
 //=======================================================
 // Workers
 //=======================================================
@@ -32,12 +40,18 @@ static void workerMin(void* a, const void* b, const void* c) {
 static void workerAdd(void *a, const void *b, const void *c) {
   // a = b + c
   *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
+
+  if (WEIGHTED_MODE)
+    addWeight();
 }
 
 /*
 static void workerSubtract(void* a, const void* b, const void* c) {
     // a = n - c
     *(TYPE *)a = *(TYPE *)b - *(TYPE *)c;
+
+    if (WEIGHTED_MODE)
+      addWeight();
 }
 */
 
@@ -45,22 +59,34 @@ static void workerSubtract(void* a, const void* b, const void* c) {
 static void workerMultiply(void* a, const void* b, const void* c) {
     // a = b * c
     *(TYPE *)a = *(TYPE *)b + *(TYPE *)c;
+
+    if (WEIGHTED_MODE)
+      addWeight();
 }
 */
 
 static void workerAddOne(void *a, const void *b) {
   // a = b + 1
   *(TYPE *) a = *(TYPE *) b + 1;
+
+  if (WEIGHTED_MODE)
+    addWeight();
 }
 
 static void workerMultTwo(void *a, const void *b) {
   // a = b * 2
   *(TYPE *) a = *(TYPE *) b * 2;
+
+  if (WEIGHTED_MODE)
+    addWeight();
 }
 
 static void workerDivTwo(void *a, const void *b) {
   // a = b / 2
   *(TYPE *) a = *(TYPE *) b / 2;
+
+  if (WEIGHTED_MODE)
+    addWeight();
 }
 
 //=======================================================
@@ -72,7 +98,7 @@ void testMap(void *src, size_t n, size_t size) {
 
   map(dest, src, n, size, workerAddOne);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(dest);
 }
@@ -82,7 +108,7 @@ void testReduce(void *src, size_t n, size_t size) {
 
   reduce(dest, src, n, size, workerAdd);
 
-  printTYPE(dest, 1, __FUNCTION__);
+  printTYPE(dest, 1, __func__);
 
   free(dest);
 }
@@ -92,7 +118,7 @@ void testScan(void *src, size_t n, size_t size) {
 
   scan(dest, src, n, size, workerAdd);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(dest);
 }
@@ -108,9 +134,9 @@ void testPack(void *src, size_t n, size_t size) {
 
   int newN = pack(dest, src, n, size, filter);
 
-  printInt(filter, n, "filter");
+  printInt(filter, n, "filter");//TODO isto demora muito tempo e pode ocultar speedup
 
-  printTYPE(dest, newN, __FUNCTION__);
+  printTYPE(dest, newN, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(filter);
   free(dest);
@@ -125,11 +151,11 @@ void testGather(void *src, size_t n, size_t size) {
   for (int i = 0; i < nFilter; i++)
     filter[i] = rand() % n;
 
-  printInt(filter, nFilter, "filter");
+  printInt(filter, nFilter, "filter");//TODO isto demora muito tempo e pode ocultar speedup
 
   gather(dest, src, n, size, filter, nFilter);
 
-  printTYPE(dest, nFilter, __FUNCTION__);
+  printTYPE(dest, nFilter, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(dest);
   free(filter);
@@ -147,11 +173,11 @@ void testScatter(void *src, size_t n, size_t size) {
   for (int i = 0; i < (int) n; i++)
     filter[i] = rand() % nDest;
 
-  printInt(filter, n, "filter");
+  printInt(filter, n, "filter");//TODO isto demora muito tempo e pode ocultar speedup
 
   scatter(dest, src, n, size, filter);
 
-  printTYPE(dest, nDest, __FUNCTION__);
+  printTYPE(dest, nDest, __func__);//TODO isto demora muito tempo e pode ocultar speedup
 
   free(filter);
   free(dest);
@@ -170,7 +196,7 @@ void testPipeline(void *src, size_t n, size_t size) {
 
   pipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -180,7 +206,7 @@ void testFarm(void *src, size_t n, size_t size) {
 
   farm(dest, src, n, size, workerAddOne, 3);
 
-  printTYPE(dest, n, __FUNCTION__);
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -214,5 +240,3 @@ char *testNames[] = {
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);
-
-

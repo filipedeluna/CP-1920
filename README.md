@@ -20,6 +20,12 @@ make
 * How to run tests
     * Example: `./main 1000000`
     * Example with debug: `./main -d 10`
+    
+### How do I update? ###
+```
+git checkout master
+git pull https://bitbucket.org/joaomlourenco/parallel_patterns_seq.git 
+```
 
 ### Who do I talk to? ###
 

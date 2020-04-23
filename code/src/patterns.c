@@ -14,25 +14,31 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
   char *s = src;
 
   #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d,s)
-  #pragma omp for schedule(static)
+  #pragma omp for
   for (int i = 0; i < (int) nJob; i++)
     worker(&d[i * sizeJob], &s[i * sizeJob]);
 }
 
 void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  /* To be implemented */
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
 
-  char *d = dest;
+  TYPE result = 0;
   char *s = src;
 
-  if (nJob > 0) {
-    memcpy(&d[0], &s[0], sizeJob);
-    for (int i = 1; i < (int) nJob; i++)
-      worker(&d[0], &d[0], &s[i * sizeJob]);
+  if(nJob > 0) {
+    result = *((TYPE *) src);
+
+    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s)
+    #pragma omp for reduction(+:result)
+    for (int i = 1; i < (int) nJob; i++) {
+      worker(&result, &result, &s[i * sizeJob]);
+    }
   }
+
+  *((TYPE *) dest) = result;
+
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -92,7 +98,6 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
 }
 
 void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-  /* To be implemented */
   assert (dest != NULL);
   assert (src != NULL);
   assert (filter != NULL);
@@ -102,8 +107,10 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   char *d = dest;
   char *s = src;
 
+  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
+  #pragma omp for
   for (int i = 0; i < (int) nJob; i++) {
-    assert (filter[i] < (int) nJob);
+    // assert (filter[i] < (int) nJob);
     memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
 }

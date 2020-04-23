@@ -3,21 +3,14 @@
 #include <sys/time.h>
 #include <string.h>
 #include <unistd.h>
+
 #include <time.h>
+#include <sys/time.h>
 
 #include "args.h"
 #include "unit.h"
 #include "debug.h"
 #include "omp.h"
-
-////////////////////////////////////////////////////////////////////////////////////////
-/// Get wall clock time as a double
-/// You may replace this with opm_get_wtime() // TODO?
-double wctime() {
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (long) tv.tv_sec * 1e6 + tv.tv_usec;
-}
 
 // Global Argp Vars
 const char *argp_program_bug_address = "<f.luna@campus.fct.unl.pt> or <gl.batista@campus.fct.unl.pt>";
@@ -37,12 +30,14 @@ int main(int argc, char *argv[]) {
   if (args.debug_mode)
     DEBUG_MODE = 1;
 
+  if (args.weighted)
+    WEIGHTED_MODE = 1;
+
   srand48(time(NULL));
   srand48(time(NULL));
 
   // Setup OpenMP
   omp_set_num_threads(args.num_threads);
-  omp_set_dynamic(0);
 
   // Initialize src array for all iterations
   printf("Initializing SRC array\n");
@@ -59,31 +54,36 @@ int main(int argc, char *argv[]) {
 
   printf("Done!\n\n");
 
-  printTYPE(src, args.iterations, "SRC");
+  printTYPE(src, args.iterations, "SRC");//TODO tirar quando se usa muitas iteracoes
 
-  long start, end;
+  double start, end;
 
   if (args.test_id == 0) {
     for (int i = 0; i < nTestFunction; i++) {
-      start = wctime();
+      start = omp_get_wtime();
 
       testFunction[i](src, args.iterations, TYPE_SIZE);
 
-      end = wctime();
+      end = omp_get_wtime();
 
-      printf("%s:\t%8ld\tmicroseconds\n", testNames[i], end - start);
+      printf("%s:\t%.0lf microseconds\n", testNames[i], (end - start) * 1e6);
 
       if (DEBUG_MODE)
         printf("\n\n");
     }
   } else {
-    start = wctime();
+    start = omp_get_wtime();
 
     testFunction[args.test_id - 1](src, args.iterations, TYPE_SIZE);
 
-    end = wctime();
+    end = omp_get_wtime();
 
-    printf("%s:\t%8ld\tmicroseconds\n", testNames[args.test_id - 1], end - start);
+    double timeMs = (end - start) * 1e6;
+
+    if (timeMs > 10000)
+      printf("%s:\t%.0lf milliseconds\n", testNames[args.test_id - 1], timeMs / 1000);
+    else
+      printf("%s:\t%.0lf microseconds\n", testNames[args.test_id - 1], timeMs);
 
     if (DEBUG_MODE)
       printf("\n\n");
