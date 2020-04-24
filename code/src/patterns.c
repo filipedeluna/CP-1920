@@ -92,9 +92,10 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
-  #pragma omp parallel default(none) shared(leftOverJobs, worker) num_threads(nTiles)
+  #pragma omp parallel default(none) num_threads(nTiles) \
+    shared(leftOverJobs, worker, tileSize, phase1reduction, sizeJob, nTiles, s)
   #pragma omp for schedule(static)
-  for (int tile = 0; tile < nTiles; tile++) {
+  for (int tile = 1; tile <= nTiles; tile++) {
     // Calculate if this tile needs to do extra job
     // use tile size to create tile reduction array
     int tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
@@ -114,15 +115,26 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   // Do phase 2 reduction
   phase2reduction[0] = s[0];
 
-  for (int tile = 1; tile < nTiles; tile++) {
+  for (int tile = 1; tile < nTiles; tile++)
     worker(&phase2reduction[tile], &phase2reduction[tile - 1], &phase1reduction[tile]);
-  }
 
   free(phase1reduction);
 
   // Do final phase
-  for (int tile = 0; tile < nTiles; tile++) {
+  #pragma omp parallel default(none) num_threads(nTiles) \
+    shared(leftOverJobs, worker, tileSize, phase2reduction, sizeJob, nTiles, d, s)
+  #pragma omp for schedule(static)
+  for (int tile = 1; tile <= nTiles; tile++) {
+    // Calculate if this tile needs to do extra job
+    // use tile size to create tile reduction array
+    int tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
 
+    // if tile other than first, aggregate values from phase 2 reduction
+    if (tile > 0)
+      memcpy(&d[tile * sizeJob], &phase2reduction[tile], sizeJob);
+
+    for (long i = 1; i < tileSizeWithOffset; i++)
+      worker(&d[i * tile * sizeJob], &d[(i - 1) * tile * sizeJob], &s[i * tile * sizeJob]);
   }
 
   free(phase2reduction);
