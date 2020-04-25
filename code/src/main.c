@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(TYPE_NAME, "char") == 0) {
       src[i] = (TYPE) (drand48() * CHAR_MAX);;
     } else
-      src[i] = drand48();
+      src[i] = (int) (drand48() * 10);
   }
 
   printf("Done!\n\n");
