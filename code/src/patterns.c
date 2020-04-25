@@ -86,8 +86,9 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   if (nJob == 0)
     return;
 
+  d[0] = s[0];
+
   if (nJob == 1) {
-    d[0] = s[0];
     return;
   }
 
@@ -141,16 +142,16 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   for (int tile = 0; tile < nTiles; tile++) {
     // Calculate if this tile needs to do extra job
     // use tile size to create tile reduction array
-    size_t tileSizeWithOffset = tileSize + (tile <= leftOverJobs ? 1 : 0);
+    size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
 
     // Get tile index
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize);
 
-    // aggregate values from phase 2 reduction
-    d[tileIndex] = phase2reduction[tile];
+    // reduce from values from phase 2 reduction
+    worker(&d[tileIndex + 1], &phase2reduction[tile], &s[tileIndex + 1]);
 
     for (size_t i = 1; i < tileSizeWithOffset; i++)
-      worker(&d[i + tileIndex], &d[i - 1 + tileIndex], &s[i + tileIndex]);
+      worker(&d[i + 1 + tileIndex], &d[i + tileIndex], &s[i + 1 + tileIndex]);
   }
 
   free(phase2reduction);
