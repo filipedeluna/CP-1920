@@ -68,7 +68,6 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
   *((TYPE *) dest) = result;
 }
 
-// inclusive scan
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
   assert (dest != NULL);
   assert (src != NULL);
@@ -155,6 +154,19 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   }
 
   free(phase2reduction);
+}
+
+void inclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  scan(dest, src, nJob, sizeJob, worker);
+}
+
+void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  scan(dest, src, nJob, sizeJob, worker);
+
+  TYPE *ptr = dest;
+
+  memmove(&ptr[1], &ptr[0], sizeJob * (nJob - 1));
+  ptr[0] = 0;
 }
 
 int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {

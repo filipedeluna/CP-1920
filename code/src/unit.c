@@ -113,10 +113,20 @@ void testReduce(void *src, size_t n, size_t size) {
   free(dest);
 }
 
-void testScan(void *src, size_t n, size_t size) {
+void testInclusiveScan(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  scan(dest, src, n, size, workerAdd);
+  inclusiveScan(dest, src, n, size, workerAdd);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
+void testExclusiveScan(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  exclusiveScan(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
@@ -220,7 +230,8 @@ typedef void (*TESTFUNCTION)(void *, size_t, size_t);
 TESTFUNCTION testFunction[] = {
     testMap,
     testReduce,
-    testScan,
+    testInclusiveScan,
+    testExclusiveScan,
     testPack,
     testGather,
     testScatter,
@@ -231,7 +242,8 @@ TESTFUNCTION testFunction[] = {
 char *testNames[] = {
     "testMap",
     "testReduce",
-    "testScan",
+    "testInclusiveScan",
+    "testExclusiveScan",
     "testPack",
     "testGather",
     "testScatter",
