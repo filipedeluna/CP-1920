@@ -43,7 +43,7 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
 
   #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d, s)
   #pragma omp for
-  for (int i = 0; i < (int) nJob; i++)
+  for (size_t i = 0; i < nJob; i++)
     worker(&d[i * sizeJob], &s[i * sizeJob]);
 }
 
@@ -60,7 +60,7 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
 
     #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s)
     #pragma omp for reduction(+:result)
-    for (int i = 1; i < (int) nJob; i++) {
+    for (size_t i = 1; i < nJob; i++) {
       worker(&result, &result, &s[i * sizeJob]);
     }
   }
@@ -107,25 +107,24 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
   #pragma omp parallel default(none) num_threads(nTiles) \
-    shared(leftOverJobs, worker, tileSize, phase1reduction, nTiles, s)
+    shared(leftOverJobs, worker, tileSize, phase1reduction, nTiles, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles - 1; tile++) {
     // Calculate if this tile needs to do extra job
-    // use tile size to create tile reduction array
     size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
 
     // Get tile index and create variable to hold reduction
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize);
-    TYPE reduction = s[tileIndex + 1];
 
-    // Do jobs for this tile. If there are leftover jobs, the first few tiles
-    // will have to do one additional job
-    for (size_t i = 1; i < tileSizeWithOffset; i++)
-      worker(&reduction, &reduction, &s[i + 1 + tileIndex]);
-
-    // Save reduction result in phase 1 results array
-    phase1reduction[tile + 1] = reduction;
+    // Reduce tile
+    reduceImpl(&phase1reduction[tile + 1], &s[tileIndex + 1], tileSizeWithOffset, sizeJob, worker, 1);
   }
+
+  for (int j = 0; j < nTiles; ++j) {
+    printf("%.0lf ", phase1reduction[j]);
+  }
+
+  printf("\n");
 
   // Do phase 2 reduction
   #pragma omp single
