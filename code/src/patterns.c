@@ -33,7 +33,8 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
  *  Parallel Patterns
 */
 
-void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+// Implementation of map
+void mapImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
@@ -41,13 +42,20 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
   char *d = dest;
   char *s = src;
 
-  #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d, s)
-  #pragma omp for
+  #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d, s) num_threads(nThreads)
+  #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++)
     worker(&d[i * sizeJob], &s[i * sizeJob]);
 }
 
-void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+// Standalone map for tests
+void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+  mapImpl(dest, src, nJob, sizeJob, worker, omp_get_max_threads());
+}
+
+// Implementation of reduce
+void
+reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3), int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
@@ -58,14 +66,19 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
   if (nJob > 0) {
     result = *((TYPE *) src);
 
-    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s)
-    #pragma omp for reduction(+:result)
-    for (size_t i = 1; i < nJob; i++) {
+    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s) num_threads(nThreads)
+    #pragma omp for reduction(+:result) schedule(static)
+    for (size_t i = 1; i < nJob; i++)
       worker(&result, &result, &s[i * sizeJob]);
     }
   }
 
   *((TYPE *) dest) = result;
+}
+
+// Standalone reduce for tests
+void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  reduceImpl(dest, src, nJob, sizeJob, worker, omp_get_max_threads());
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -111,10 +124,12 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles - 1; tile++) {
     // Calculate if this tile needs to do extra job
+    // use tile size to create tile reduction array
     size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
 
     // Get tile index and create variable to hold reduction
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize);
+    TYPE reduction = s[tileIndex + 1];
 
     // Reduce tile
     reduceImpl(&phase1reduction[tile + 1], &s[tileIndex + 1], tileSizeWithOffset, sizeJob, worker, 1);
