@@ -70,7 +70,6 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
     #pragma omp for reduction(+:result) schedule(static)
     for (size_t i = 1; i < nJob; i++)
       worker(&result, &result, &s[i * sizeJob]);
-    }
   }
 
   *((TYPE *) dest) = result;
@@ -124,24 +123,16 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles - 1; tile++) {
     // Calculate if this tile needs to do extra job
-    // use tile size to create tile reduction array
     size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
 
-    // Get tile index and create variable to hold reduction
-    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize);
-    TYPE reduction = s[tileIndex + 1];
+    // Get tile index with + 1 offset
+    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
 
     // Reduce tile
-    reduceImpl(&phase1reduction[tile + 1], &s[tileIndex + 1], tileSizeWithOffset, sizeJob, worker, 1);
+    reduceImpl(&phase1reduction[tile + 1], &s[tileIndex], tileSizeWithOffset, sizeJob, worker, 1);
   }
 
-  for (int j = 0; j < nTiles; ++j) {
-    printf("%.0lf ", phase1reduction[j]);
-  }
-
-  printf("\n");
-
-  // Do phase 2 reduction
+  // Do phase 2 reductions
   #pragma omp single
   for (int tile = 1; tile < nTiles; tile++)
     worker(&phase2reduction[tile], &phase2reduction[tile - 1], &phase1reduction[tile]);
@@ -150,18 +141,18 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   // Do final phase
   #pragma omp parallel default(none) num_threads(nTiles) \
-    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s)
+    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
     // Calculate if this tile needs to do extra job
     // use tile size to create tile reduction array
     size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
 
-    // Get tile index
-    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize);
+    // Get tile index with + 1 offset
+    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
 
-    // reduce from values from phase 2 reduction
-    worker(&d[tileIndex + 1], &phase2reduction[tile], &s[tileIndex + 1]);
+    // Set value of first value of tile from phase 2
+    worker(&d[tileIndex], &phase2reduction[tile], &s[tileIndex]);
 
     for (size_t i = 1; i < tileSizeWithOffset; i++)
       worker(&d[i + 1 + tileIndex], &d[i + tileIndex], &s[i + 1 + tileIndex]);
