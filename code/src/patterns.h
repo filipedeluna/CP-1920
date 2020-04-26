@@ -17,7 +17,15 @@ void reduce(
     void (*worker)(void *v1, const void *v2, const void *v3) // [ v1 = op (v2, v3) ]
 );
 
-void scan(
+void inclusiveScan(
+    void *dest,           // Target array
+    void *src,            // Source array
+    size_t nJob,          // # elements in the source array
+    size_t sizeJob,       // Size of each element in the source array
+    void (*worker)(void *v1, const void *v2, const void *v3) // [ v1 = op (v2, v3) ]
+);
+
+void exclusiveScan(
     void *dest,           // Target array
     void *src,            // Source array
     size_t nJob,          // # elements in the source array

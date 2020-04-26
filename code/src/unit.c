@@ -98,7 +98,7 @@ void testMap(void *src, size_t n, size_t size) {
 
   map(dest, src, n, size, workerAddOne);
 
-  printTYPE(dest, n, __func__);//TODO isto demora muito tempo e pode ocultar speedup
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -113,12 +113,22 @@ void testReduce(void *src, size_t n, size_t size) {
   free(dest);
 }
 
-void testScan(void *src, size_t n, size_t size) {
+void testInclusiveScan(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  scan(dest, src, n, size, workerAdd);
+  inclusiveScan(dest, src, n, size, workerAdd);
 
-  printTYPE(dest, n, __func__);//TODO isto demora muito tempo e pode ocultar speedup
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
+void testExclusiveScan(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  exclusiveScan(dest, src, n, size, workerAdd);
+
+  printTYPE(dest, n, __func__);
 
   free(dest);
 }
@@ -134,9 +144,9 @@ void testPack(void *src, size_t n, size_t size) {
 
   int newN = pack(dest, src, n, size, filter);
 
-  printInt(filter, n, "filter");//TODO isto demora muito tempo e pode ocultar speedup
+  printInt(filter, n, "filter");
 
-  printTYPE(dest, newN, __func__);//TODO isto demora muito tempo e pode ocultar speedup
+  printTYPE(dest, newN, __func__);
 
   free(filter);
   free(dest);
@@ -151,11 +161,11 @@ void testGather(void *src, size_t n, size_t size) {
   for (int i = 0; i < nFilter; i++)
     filter[i] = rand() % n;
 
-  printInt(filter, nFilter, "filter");//TODO isto demora muito tempo e pode ocultar speedup
+  printInt(filter, nFilter, "filter");
 
   gather(dest, src, n, size, filter, nFilter);
 
-  printTYPE(dest, nFilter, __func__);//TODO isto demora muito tempo e pode ocultar speedup
+  printTYPE(dest, nFilter, __func__);
 
   free(dest);
   free(filter);
@@ -173,11 +183,11 @@ void testScatter(void *src, size_t n, size_t size) {
   for (int i = 0; i < (int) n; i++)
     filter[i] = rand() % nDest;
 
-  printInt(filter, n, "filter");//TODO isto demora muito tempo e pode ocultar speedup
+  printInt(filter, n, "filter");
 
   scatter(dest, src, n, size, filter);
 
-  printTYPE(dest, nDest, __func__);//TODO isto demora muito tempo e pode ocultar speedup
+  printTYPE(dest, nDest, __func__);
 
   free(filter);
   free(dest);
@@ -220,7 +230,8 @@ typedef void (*TESTFUNCTION)(void *, size_t, size_t);
 TESTFUNCTION testFunction[] = {
     testMap,
     testReduce,
-    testScan,
+    testInclusiveScan,
+    testExclusiveScan,
     testPack,
     testGather,
     testScatter,
@@ -231,7 +242,8 @@ TESTFUNCTION testFunction[] = {
 char *testNames[] = {
     "testMap",
     "testReduce",
-    "testScan",
+    "testInclusiveScan",
+    "testExclusiveScan",
     "testPack",
     "testGather",
     "testScatter",
