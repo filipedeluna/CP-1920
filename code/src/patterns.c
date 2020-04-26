@@ -3,9 +3,10 @@
 #include <malloc.h>
 #include "patterns.h"
 #include "args.h"
+#include "omp.h"
 
-void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
-  /* To be implemented */
+// Implementation of map
+void mapImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
@@ -13,13 +14,19 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
   char *d = dest;
   char *s = src;
 
-  #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d,s)
-  #pragma omp for
+  #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d, s) num_threads(nThreads)
+  #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++)
     worker(&d[i * sizeJob], &s[i * sizeJob]);
 }
 
-void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+// Standalone map for tests
+void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+  mapImpl(dest, src, nJob, sizeJob, worker, omp_get_max_threads());
+}
+
+// Implementation of reduce
+void reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3), int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
@@ -27,18 +34,21 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
   TYPE result = 0;
   char *s = src;
 
-  if(nJob > 0) {
+  if (nJob > 0) {
     result = *((TYPE *) src);
 
-    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s)
-    #pragma omp for reduction(+:result)
-    for (int i = 1; i < (int) nJob; i++) {
+    #pragma omp parallel default(none) shared(worker, nJob, sizeJob, result, s) num_threads(nThreads)
+    #pragma omp for reduction(+:result) schedule(static)
+    for (int i = 1; i < (int) nJob; i++)
       worker(&result, &result, &s[i * sizeJob]);
-    }
   }
 
   *((TYPE *) dest) = result;
+}
 
+// Standalone reduce for tests
+void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  reduceImpl(dest, src, nJob, sizeJob, worker, omp_get_max_threads());
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
