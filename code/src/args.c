@@ -36,7 +36,7 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
       args->num_threads = 1;
       break;
     case ARGP_KEY_END:
-      if (args->iterations < 1)
+      if (args->iterations < 0)
         argp_failure(state, 1, 0, "invalid number of iterations");
 
       if (args->num_threads < 1)
