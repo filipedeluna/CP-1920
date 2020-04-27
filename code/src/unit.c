@@ -231,6 +231,24 @@ void testItemBoundPipeline(void *src, size_t n, size_t size) {
   free(dest);
 }
 
+void testSequentialPipeline(void *src, size_t n, size_t size) {
+  void (*pipelineFunction[])(void *, const void *) = {
+      workerMultTwo,
+      workerAddOne,
+      workerDivTwo
+  };
+
+  int nPipelineFunction = sizeof(pipelineFunction) / sizeof(pipelineFunction[0]);
+
+  TYPE *dest = malloc(n * size);
+
+  sequentialPipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
 void testFarm(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
@@ -257,6 +275,7 @@ TESTFUNCTION testFunction[] = {
     testScatter,
     testItemBoundPipeline,
     testMapPipeline,
+    testSequentialPipeline,
     testFarm,
 };
 
@@ -270,6 +289,7 @@ char *testNames[] = {
     "testScatter",
     "testItemBoundPipeline",
     "testMapPipeline",
+    "testSequentialPipeline",
     "testFarm",
 };
 
