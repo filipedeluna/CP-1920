@@ -175,7 +175,6 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   }
 
   // Do phase 2 reductions
-  #pragma omp single
   for (int tile = 1; tile < nTiles; tile++)
     worker(&phase2reduction[tile], &phase2reduction[tile - 1], &phase1reduction[tile]);
 
@@ -204,16 +203,11 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 }
 
 void inclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  scan(dest, src, nJob, sizeJob, worker);
+  scan(dest, src, nJob - 1, sizeJob, worker);
 }
 
 void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  scan(dest, src, nJob, sizeJob, worker);
-
-  TYPE *ptr = dest;
-
-  memmove(&ptr[1], &ptr[0], sizeJob * (nJob - 1));
-  ptr[0] = 0;
+  scan((TYPE *) dest + 1, src, nJob - 1, sizeJob, worker);
 }
 
 int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
