@@ -20,7 +20,7 @@ void printInt(const int *src, size_t n, const char *msg) {
     printf("%s int: ", msg);
 
     for (int i = 0; i < (int) n; i++)
-      printf("[%d]=%d ", i, src[i]);
+      printf("[%d] = %d ", i, src[i]);
 
     printf("\n-------------------------------\n");
   }

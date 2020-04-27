@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <malloc.h>
@@ -232,8 +233,7 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   return pos;
 }
 
-void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
-  /* To be implemented */
+void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter, int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (filter != NULL);
@@ -241,13 +241,27 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
   assert (sizeJob > 0);
   assert (nFilter >= 0);
 
-  char *d = dest;
-  char *s = src;
+  TYPE *d = dest;
+  TYPE *s = src;
 
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(filter, nFilter, d, s, sizeJob, nJob, stderr) num_threads(nThreads)
+  #pragma omp for schedule(static)
   for (int i = 0; i < nFilter; i++) {
-    assert (filter[i] < (int) nJob);
-    memcpy(&d[i * sizeJob], &s[filter[i] * sizeJob], sizeJob);
+    // This assertion fails due to a bug - error: ‘__PRETTY_FUNCTION__’ not specified in enclosing ‘parallel’
+    // assert (filter[i] < (int) nJob);
+    // I replaced it with a closely equivalent solution
+    if (filter[i] >= (int) nJob) {
+      fprintf(stderr, "Invalid filter index in Gather");
+      exit(1);
+    }
+
+    memcpy(&d[i], &s[filter[i]], sizeJob);
   }
+}
+
+void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter) {
+  gatherImpl(dest, src, nJob, sizeJob, filter, nFilter, omp_get_max_threads());
 }
 
 void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {

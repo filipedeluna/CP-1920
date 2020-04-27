@@ -33,6 +33,8 @@ int main(int argc, char *argv[]) {
   if (args.weighted)
     WEIGHTED_MODE = 1;
 
+  ITERATIONS = args.iterations;
+
   srand48(time(NULL));
   srand48(time(NULL));
 
@@ -56,7 +58,7 @@ int main(int argc, char *argv[]) {
 
   printf("Done!\n\n");
 
-  printTYPE(src, args.iterations, "SRC");//TODO tirar quando se usa muitas iteracoes
+  printTYPE(src, args.iterations, "SRC");
 
   double start, end;
 

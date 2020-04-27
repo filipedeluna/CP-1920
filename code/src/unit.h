@@ -2,6 +2,7 @@
 #define __UNIT_H
 
 extern int WEIGHTED_MODE;
+extern int ITERATIONS;
 
 typedef void (*TESTFUNCTION)(void *, size_t, size_t);
 
