@@ -99,9 +99,8 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   d[0] = s[0];
 
-  if (nJob == 1) {
+  if (nJob == 1)
     return;
-  }
 
   // Set size of tiles in relation to number of threads
   // set how many left over jobs, making a few threads work an extra job
@@ -113,8 +112,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   // Set first position for both as the first value of the src array
   TYPE *phase1reduction = calloc(nTiles, sizeJob);
   TYPE *phase2reduction = calloc(nTiles, sizeJob);
-  phase1reduction[0] = s[0];
-  phase2reduction[0] = s[0];
+  phase1reduction[0] = phase2reduction[0] = s[0];
 
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
@@ -139,6 +137,8 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   free(phase1reduction);
 
+  printf("\n");
+
   // Do final phase
   #pragma omp parallel default(none) num_threads(nTiles) \
     shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
@@ -155,7 +155,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     worker(&d[tileIndex], &phase2reduction[tile], &s[tileIndex]);
 
     for (size_t i = 1; i < tileSizeWithOffset; i++)
-      worker(&d[i + 1 + tileIndex], &d[i + tileIndex], &s[i + 1 + tileIndex]);
+      worker(&d[i + tileIndex], &d[i - 1 + tileIndex], &s[i + tileIndex]);
   }
 
   free(phase2reduction);
