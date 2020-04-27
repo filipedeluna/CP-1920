@@ -282,18 +282,22 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   }
 }
 
-void mapPipelineImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers, int nThreads) {
+void mapPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (workerList != NULL);
   assert ((int) nJob >= 0);
   assert (sizeJob > 0);
+  for (size_t i = 0; i < nWorkers; i++)
+    assert (workerList[i] != NULL);
 
   TYPE *d = dest;
   TYPE *s = src;
 
   if (nWorkers == 0)
     return;
+
+  int nThreads = omp_get_max_threads();
 
   // Do first cycle
   assert (workerList[0] != NULL);
@@ -306,12 +310,14 @@ void mapPipelineImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*
   }
 }
 
-void itemBoundPipelineImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers, int nThreads) {
+void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (workerList != NULL);
   assert ((int) nJob >= 0);
   assert (sizeJob > 0);
+  for (size_t i = 0; i < nWorkers; i++)
+    assert (workerList[i] != NULL);
 
   /*
    * In this version of the algorithm, a worker accompanies
@@ -325,6 +331,8 @@ void itemBoundPipelineImpl(void *dest, void *src, size_t nJob, size_t sizeJob, v
   if (nWorkers == 0)
     return;
 
+  int nThreads = omp_get_max_threads();
+
   #pragma omp parallel default(none) if(nThreads > 1) \
   shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
   #pragma omp for schedule(static)
@@ -337,14 +345,6 @@ void itemBoundPipelineImpl(void *dest, void *src, size_t nJob, size_t sizeJob, v
     for (size_t j = 1; j < nWorkers; j++)
       workerList[j](&d[i], &d[i]);
   }
-}
-
-void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-  for (size_t i = 0; i < nWorkers; i++)
-    assert (workerList[i] != NULL);
-
-  //mapPipelineImpl(dest, src, nJob, sizeJob, workerList, nWorkers, omp_get_max_threads());
-  itemBoundPipelineImpl(dest, src, nJob, sizeJob, workerList, nWorkers, omp_get_max_threads());
 }
 
 void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
