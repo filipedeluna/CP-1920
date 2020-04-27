@@ -30,6 +30,11 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
          : leftOverTiles * (tileSize + 1) + (tile - leftOverTiles) * tileSize;
 }
 
+static void workerAddForPack(void *a, const void *b, const void *c) {
+    // a = b + c
+    *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
+}
+
 /*
  *  Parallel Patterns
 */
@@ -222,15 +227,17 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   char *d = dest;
   char *s = src;
 
-  int pos = 0;
+  TYPE *bitSumArray[nJob];
+  exclusiveScan(bitSumArray, (void *) filter, nJob, sizeJob, workerAddForPack);
+
   for (int i = 0; i < (int) nJob; i++) {
     if (filter[i]) {
-      memcpy(&d[pos * sizeJob], &s[i * sizeJob], sizeJob);
-      pos++;
+        size_t pos = (size_t) bitSumArray[i] * sizeJob;
+        memcpy(&d[pos], &s[i * sizeJob], sizeJob);
     }
   }
 
-  return pos;
+  return 0;
 }
 
 void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter, int nThreads) {
