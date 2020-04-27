@@ -216,8 +216,7 @@ void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*wo
   scan((TYPE *) dest + 1, src, nJob - 1, sizeJob, worker);
 }
 
-int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-  /* To be implemented */
+void packImpl (void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (filter != NULL);
@@ -230,13 +229,19 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   TYPE *bitSumArray[nJob];
   exclusiveScan(bitSumArray, (void *) filter, nJob, sizeJob, workerAddForPack);
 
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(nJob, d, s, filter, bitSumArray, sizeJob) num_threads(nThreads)
+  #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
     if (filter[i]) {
-        size_t pos = (size_t) bitSumArray[i] * sizeJob;
-        memcpy(&d[pos], &s[i * sizeJob], sizeJob);
+      memcpy(&d[(size_t) bitSumArray[i] * sizeJob], &s[i * sizeJob], sizeJob);
     }
   }
 
+}
+
+int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+  packImpl(dest, src, nJob, sizeJob, filter, omp_get_max_threads());
   return 0;
 }
 
