@@ -354,7 +354,7 @@ void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void
     assert (workerList[i] != NULL);
 
   /*
-   * In this version, the data is processed sequentally.
+   * In this version, the data is processed sequentially.
    * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
   */
 
