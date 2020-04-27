@@ -34,23 +34,28 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
 */
 
 // Implementation of map
-void mapImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), int nThreads) {
+void mapImpl(void *dest, void *src, size_t nJob, void (*worker)(void *v1, const void *v2), int nThreads) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
+  assert (nThreads >= 1);
 
-  char *d = dest;
-  char *s = src;
+  TYPE *d = dest;
+  TYPE *s = src;
 
-  #pragma omp parallel default(none) shared(worker, nJob, sizeJob, d, s) num_threads(nThreads)
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(worker, nJob, d, s) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++)
-    worker(&d[i * sizeJob], &s[i * sizeJob]);
+    worker(&d[i], &s[i]);
 }
 
 // Standalone map for tests
 void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
-  mapImpl(dest, src, nJob, sizeJob, worker, omp_get_max_threads());
+  // Avoid unused parameter error for useless parameter
+  (void) sizeJob;
+
+  mapImpl(dest, src, nJob, worker, omp_get_max_threads());
 }
 
 // Implementation of reduce
@@ -59,17 +64,19 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
   assert (dest != NULL);
   assert (src != NULL);
   assert (worker != NULL);
+  assert (nThreads >= 1);
 
   /*
    * Implementation based on Structured Parallel Programming by Michael McCool et al.
    * The two phase implementation of reduce can be found on chapter 5
    */
 
+  // Zero destination variable
+  memset(dest, 0, sizeJob);
+
   // If no jobs, return 0
-  if (nJob == 0) {
-    dest = calloc(1, sizeJob);
+  if (nJob == 0)
     return;
-  }
 
   TYPE *result = calloc(1, sizeJob);
   TYPE *s = src;
@@ -84,7 +91,7 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
   // Set first position as the first value of the src array
   TYPE *phase1reduction = calloc(nTiles, sizeJob);
 
-  #pragma omp parallel default(none) num_threads(nTiles) \
+  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
     shared(leftOverJobs, phase1reduction, worker, tileSize, nTiles, result, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
@@ -100,7 +107,6 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
   }
 
   // Do phase 2 reduction
-  #pragma omp single
   for (int tile = 0; tile < nTiles; tile++)
     worker(result, result, &phase1reduction[tile]);
 
@@ -153,7 +159,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
-  #pragma omp parallel default(none) num_threads(nTiles) \
+  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
     shared(leftOverJobs, worker, tileSize, phase1reduction, nTiles, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles - 1; tile++) {
@@ -176,7 +182,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   free(phase1reduction);
 
   // Do final phase
-  #pragma omp parallel default(none) num_threads(nTiles) \
+  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
     shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
