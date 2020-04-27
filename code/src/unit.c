@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "patterns.h"
 
 #include "debug.h"
@@ -8,6 +9,7 @@
 #define FMT "%lf"
 
 int WEIGHTED_MODE = 0;
+int ITERATIONS = 0;
 
 // Add a bit of weight to worker functions
 void addWeight() {
@@ -153,12 +155,12 @@ void testPack(void *src, size_t n, size_t size) {
 }
 
 void testGather(void *src, size_t n, size_t size) {
-  int nFilter = 3;
-  int filter[nFilter];
+  int nFilter = ITERATIONS / 2;
+  int *filter = calloc(nFilter, sizeof(int));
 
   TYPE *dest = malloc(nFilter * size);
 
-  for (int i = 0; i < nFilter; i++)
+  for (long i = 0; i < nFilter; i++)
     filter[i] = rand() % n;
 
   printInt(filter, nFilter, "filter");
