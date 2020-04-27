@@ -227,7 +227,7 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   TYPE *d = dest;
   TYPE *s = src;
 
-  int *bitSumArray[nJob];
+  int *bitSumArray = calloc(nJob, sizeof(int));
   exclusiveScan(bitSumArray, (void *) filter, nJob, sizeJob, workerAddForPack);
 
   #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
