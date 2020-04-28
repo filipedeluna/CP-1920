@@ -290,23 +290,97 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   }
 }
 
-void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-  /* To be implemented */
+void mapPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   assert (dest != NULL);
   assert (src != NULL);
   assert (workerList != NULL);
   assert ((int) nJob >= 0);
   assert (sizeJob > 0);
+  for (size_t i = 0; i < nWorkers; i++)
+    assert (workerList[i] != NULL);
 
-  char *d = dest;
-  char *s = src;
+  TYPE *d = dest;
+  TYPE *s = src;
 
-  for (int i = 0; i < (int) nJob; i++) {
-    memcpy(&d[i * sizeJob], &s[i * sizeJob], sizeJob);
+  if (nWorkers == 0)
+    return;
 
-    for (int j = 0; j < (int) nWorkers; j++) {
-      assert (workerList[j] != NULL);
-      workerList[j](&d[i * sizeJob], &d[i * sizeJob]);
+  int nThreads = omp_get_max_threads();
+
+  // Do first cycle
+  mapImpl(d, s, nJob, workerList[0], nThreads);
+
+  // Following cycles
+  for (size_t j = 1; j < nWorkers; j++)
+    mapImpl(d, d, nJob, workerList[j], nThreads);
+}
+
+void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+  assert (dest != NULL);
+  assert (src != NULL);
+  assert (workerList != NULL);
+  assert ((int) nJob >= 0);
+  assert (sizeJob > 0);
+  for (size_t i = 0; i < nWorkers; i++)
+    assert (workerList[i] != NULL);
+
+  /*
+   * In this version of the algorithm, a worker accompanies
+   * one block through all the transformations for better data locality
+   * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
+  */
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  if (nWorkers == 0)
+    return;
+
+  int nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
+  #pragma omp for schedule(static)
+  for (size_t i = 0; i < nJob; i++) {
+
+    // Do first worker
+    workerList[0](&d[i], &s[i]);
+
+    // Do subsequent workers
+    for (size_t j = 1; j < nWorkers; j++)
+      workerList[j](&d[i], &d[i]);
+  }
+}
+
+void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+  assert (dest != NULL);
+  assert (src != NULL);
+  assert (workerList != NULL);
+  assert ((int) nJob >= 0);
+  assert (sizeJob > 0);
+  for (size_t i = 0; i < nWorkers; i++)
+    assert (workerList[i] != NULL);
+
+  /*
+   * In this version, the data is processed sequentially.
+   * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
+  */
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  if (nWorkers == 0)
+    return;
+
+  int nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
+  for (size_t i = 0; i < nJob - nWorkers; i++) {
+    #pragma omp single
+    for (size_t j = 0; j <= min(j, nWorkers); j++) {
+      #pragma omp task
+      mapImpl(d, j % nJob == 0 ? s : d, nJob, workerList[j], nWorkers);
     }
   }
 }
