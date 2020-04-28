@@ -76,7 +76,7 @@ static void workerAddOne(void *a, const void *b) {
 }
 
 static void workerAccum(void *a, const void *b) {
-  // a = b + 1
+  // a = a + b
   *(TYPE *) a = *(TYPE *) a + *(TYPE *) b;
 
   if (WEIGHTED_MODE)
@@ -270,7 +270,9 @@ void testFarm(void *src, size_t n, size_t size) {
 void testStencil(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  int nShift = rand() % 5;
+  srand(time(0));
+  int nShift = (rand() % 5) + 1;
+
   printf("Stencil shift size: %d\n", nShift);
 
   stencil(dest, src, n, size, workerAccum, nShift);

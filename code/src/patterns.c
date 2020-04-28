@@ -399,8 +399,8 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
   for (size_t i = 0; i < nJob; i++) {
     TYPE result = 0;
 
-    for (size_t j = max(i - nShift, 0); j < i + nShift; j++)
-      worker(&result, &s[i]);
+    for (size_t j = max(i - nShift, 0); j < min(i + nShift, nJob); j++)
+      worker(&result, &s[j]);
 
     memcpy(&d[i], &result, sizeJob);
   }
