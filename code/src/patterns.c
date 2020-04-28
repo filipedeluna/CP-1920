@@ -381,3 +381,23 @@ void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   map(dest, src, nJob, sizeJob, worker);  // it provides the right result, but is a very very vey bad implementation…
 }
 
+void stencil(void *dest, void *src, size_t nJob, void (*worker)(void *v1, const void *v2), int nShift) {
+  basicAsserts(dest, src, worker);
+
+  /*
+  * Based on McCool book - Structured Parallel Programming - Chapter 7.1.
+  */
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  int nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(worker, nJob, d, s, nShift) num_threads(nThreads)
+  #pragma omp for schedule(static)
+  for (size_t i = 0; i < nJob; i++)
+    for (size_t j = max(i - nShift, 0); j < i + nShift; j++)
+      worker(&d[j], &s[i]);
+}
+

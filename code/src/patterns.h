@@ -94,4 +94,12 @@ void farm(
     size_t nWorkers       // # workers in the farm
 );
 
+void stencil(
+    void *dest,        // Target array
+    void *src,         // Source array
+    size_t nJob,       // # elements in the source array
+    void (*worker)(void *v1, const void *v2),
+    int nShift // stencil shift
+);
+
 #endif
