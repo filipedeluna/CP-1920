@@ -75,6 +75,14 @@ static void workerAddOne(void *a, const void *b) {
     addWeight();
 }
 
+static void workerAccum(void *a, const void *b) {
+  // a = b + 1
+  *(TYPE *) a = *(TYPE *) a + *(TYPE *) b;
+
+  if (WEIGHTED_MODE)
+    addWeight();
+}
+
 static void workerMultTwo(void *a, const void *b) {
   // a = b * 2
   *(TYPE *) a = *(TYPE *) b * 2;
@@ -259,6 +267,19 @@ void testFarm(void *src, size_t n, size_t size) {
   free(dest);
 }
 
+void testStencil(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  int nShift = rand() % 5;
+  printf("Stencil shift size: %d\n", nShift);
+
+  stencil(dest, src, n, size, workerAccum, nShift);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
 //=======================================================
 // List of unit test functions
 //=======================================================
@@ -277,6 +298,7 @@ TESTFUNCTION testFunction[] = {
     testMapPipeline,
     testSequentialPipeline,
     testFarm,
+    testStencil
 };
 
 char *testNames[] = {
@@ -291,6 +313,7 @@ char *testNames[] = {
     "testMapPipeline",
     "testSequentialPipeline",
     "testFarm",
+    "testStencil"
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);
