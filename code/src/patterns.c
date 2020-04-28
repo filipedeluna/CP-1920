@@ -5,6 +5,7 @@
 #include <omp.h>
 #include "patterns.h"
 #include "args.h"
+#include "math.h"
 
 /*
  *  UTILS
@@ -37,8 +38,8 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
 }
 
 static void workerAddForPack(void *a, const void *b, const void *c) {
-    // a = b + c
-    *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
+  // a = b + c
+  *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
 }
 
 void basicAsserts(void *dest, void *src, void (*worker)(void *v1, const void *v2)) {
@@ -70,6 +71,13 @@ void pipelineAsserts(void *dest, void *src, size_t nJob, size_t sizeJob, void (*
   for (size_t i = 0; i < nWorkers; i++)
     assert (workerList[i] != NULL);
 }
+
+struct treeNode {
+    size_t rangeHigh;
+    size_t rangeLow;
+    size_t sum;
+    size_t fromLeft;
+} treeNode;
 
 /*
  *  Parallel Patterns
@@ -162,9 +170,7 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-
   basicAsserts2(dest, src, worker);
-
 
   /*
   * Implementation based on Structured Parallel Programming by Michael McCool et al.
@@ -263,9 +269,9 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
   #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
-      if (filter[i]) {
-          memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
-      }
+    if (filter[i]) {
+      memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
+    }
   }
 
   return bitSumArray[nJob] + 1;
@@ -421,3 +427,89 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
   }
 }
 
+void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  basicAsserts2(dest, src, worker);
+
+  /*
+  * Up/Down pass implementation based on the slides.
+  * This is an inclusive scan
+  */
+
+  // Create tree structure
+  size_t treeLevels = log(2 * nJob);
+  int isOdd = nJob % 2;
+  struct treeNode *tree = calloc(nJob, sizeof(treeNode));
+
+  // Begin up pass
+
+
+
+  char *d = dest;
+  char *s = src;
+
+  if (nJob == 0)
+    return;
+
+  memcpy(d, s, sizeJob);
+
+  if (nJob == 1)
+    return;
+
+  // Set size of tiles in relation to number of threads
+  // set how many left over jobs, making a few threads work an extra job
+  size_t tileSize = (nJob - 1) / omp_get_max_threads();
+  int leftOverJobs = (int) ((nJob - 1) % omp_get_max_threads());
+  int nTiles = min((nJob - 1), omp_get_max_threads());
+
+  // Allocate space to hold the reductions of phase 1 and 2
+  // Set first position for both as the first value of the src array
+  char *phase1reduction = calloc(nTiles, sizeJob);
+  char *phase2reduction = calloc(nTiles, sizeJob);
+  memcpy(phase1reduction, s, sizeJob);
+  memcpy(phase2reduction, s, sizeJob);
+
+
+  // Start phase 1 for each tile with one tile per processor
+  // If there are less jobs than processors, only start the necessary tiles
+  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
+    shared(leftOverJobs, worker, tileSize, phase1reduction, nTiles, s, sizeJob)
+  #pragma omp for schedule(static)
+  for (int tile = 0; tile < nTiles - 1; tile++) {
+    // Calculate if this tile needs to do extra job
+    // use tile size to create tile reduction array
+    size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
+
+    // Get tile index with + 1 offset
+    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
+
+    // Reduce tile
+    reduceImpl(&phase1reduction[(tile + 1) * sizeJob], &s[tileIndex * sizeJob], tileSizeWithOffset, sizeJob, worker, 1);
+  }
+
+  // Do phase 2 reductions
+  for (int tile = 1; tile < nTiles; tile++)
+    worker(&phase2reduction[tile * sizeJob], &phase2reduction[(tile - 1) * sizeJob], &phase1reduction[tile * sizeJob]);
+
+  free(phase1reduction);
+
+  // Do final phase
+  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
+    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
+  #pragma omp for schedule(static)
+  for (int tile = 0; tile < nTiles; tile++) {
+    // Calculate if this tile needs to do extra job
+    // use tile size to create tile reduction array
+    size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
+
+    // Get tile index with + 1 offset
+    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
+
+    // Set value of first value of tile from phase 2
+    worker(&d[tileIndex * sizeJob], &phase2reduction[tile * sizeJob], &s[tileIndex * sizeJob]);
+
+    for (size_t i = 1; i < tileSizeWithOffset; i++)
+      worker(&d[(i + tileIndex) * sizeJob], &d[(i - 1 + tileIndex) * sizeJob], &s[(i + tileIndex) * sizeJob]);
+  }
+
+  free(phase2reduction);
+}
