@@ -262,7 +262,7 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
       }
   }
 
-  return 0;
+  return sizeof(filter);
 }
 
 void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter, int nThreads) {
