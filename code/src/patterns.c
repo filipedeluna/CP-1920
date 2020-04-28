@@ -35,15 +35,43 @@ static void workerAddForPack(void *a, const void *b, const void *c) {
     *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
 }
 
+void basicAsserts(void *dest, void *src, void (*worker)(void *v1, const void *v2)) {
+  assert (dest != NULL);
+  assert (src != NULL);
+  assert (worker != NULL);
+}
+
+void basicAsserts2(void *dest, void *src, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  assert (dest != NULL);
+  assert (src != NULL);
+  assert (worker != NULL);
+}
+
+void filteredAsserts(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+  assert (dest != NULL);
+  assert (src != NULL);
+  assert (filter != NULL);
+  assert ((int) nJob >= 0);
+  assert (sizeJob > 0);
+}
+
+void pipelineAsserts(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+  assert (dest != NULL);
+  assert (src != NULL);
+  assert (workerList != NULL);
+  assert ((int) nJob >= 0);
+  assert (sizeJob > 0);
+  for (size_t i = 0; i < nWorkers; i++)
+    assert (workerList[i] != NULL);
+}
+
 /*
  *  Parallel Patterns
 */
 
 // Implementation of map
 void mapImpl(void *dest, void *src, size_t nJob, void (*worker)(void *v1, const void *v2), int nThreads) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (worker != NULL);
+  basicAsserts(dest, src, worker);
   assert (nThreads >= 1);
 
   TYPE *d = dest;
@@ -67,9 +95,7 @@ void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void
 // Implementation of reduce
 void
 reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3), int nThreads) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (worker != NULL);
+  basicAsserts2(dest, src, worker);
   assert (nThreads >= 1);
 
   /*
@@ -85,6 +111,7 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
     return;
 
   TYPE *result = calloc(1, sizeJob);
+
   TYPE *s = src;
 
   // Set size of tiles in relation to number of threads
@@ -129,10 +156,9 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  /* To be implemented */
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (worker != NULL);
+
+  basicAsserts2(dest, src, worker);
+
 
   /*
   * Implementation based on Structured Parallel Programming by Michael McCool et al.
@@ -140,13 +166,13 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   * This is the inclusive scan
   */
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   if (nJob == 0)
     return;
 
-  d[0] = s[0];
+  memcpy(d, s, sizeJob);
 
   if (nJob == 1)
     return;
@@ -159,9 +185,11 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   // Allocate space to hold the reductions of phase 1 and 2
   // Set first position for both as the first value of the src array
-  TYPE *phase1reduction = calloc(nTiles, sizeJob);
-  TYPE *phase2reduction = calloc(nTiles, sizeJob);
-  phase1reduction[0] = phase2reduction[0] = s[0];
+  char *phase1reduction = calloc(nTiles, sizeJob);
+  char *phase2reduction = calloc(nTiles, sizeJob);
+  memcpy(phase1reduction, s, sizeJob);
+  memcpy(phase2reduction, s, sizeJob);
+
 
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
@@ -177,18 +205,18 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
 
     // Reduce tile
-    reduceImpl(&phase1reduction[tile + 1], &s[tileIndex], tileSizeWithOffset, sizeJob, worker, 1);
+    reduceImpl(&phase1reduction[(tile + 1) * sizeJob], &s[tileIndex * sizeJob], tileSizeWithOffset, sizeJob, worker, 1);
   }
 
   // Do phase 2 reductions
   for (int tile = 1; tile < nTiles; tile++)
-    worker(&phase2reduction[tile], &phase2reduction[tile - 1], &phase1reduction[tile]);
+    worker(&phase2reduction[tile * sizeJob], &phase2reduction[(tile - 1) * sizeJob], &phase1reduction[tile * sizeJob]);
 
   free(phase1reduction);
 
   // Do final phase
   #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
-    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s)
+    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
     // Calculate if this tile needs to do extra job
@@ -199,17 +227,17 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
 
     // Set value of first value of tile from phase 2
-    worker(&d[tileIndex], &phase2reduction[tile], &s[tileIndex]);
+    worker(&d[tileIndex * sizeJob], &phase2reduction[tile * sizeJob], &s[tileIndex * sizeJob]);
 
     for (size_t i = 1; i < tileSizeWithOffset; i++)
-      worker(&d[i + tileIndex], &d[i - 1 + tileIndex], &s[i + tileIndex]);
+      worker(&d[(i + tileIndex) * sizeJob], &d[(i - 1 + tileIndex) * sizeJob], &s[(i + tileIndex) * sizeJob]);
   }
 
   free(phase2reduction);
 }
 
 void inclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  scan(dest, src, nJob - 1, sizeJob, worker);
+  scan(dest, src, nJob, sizeJob, worker);
 }
 
 void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -218,11 +246,7 @@ void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*wo
 
 
 int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (filter != NULL);
-  assert ((int) nJob >= 0);
-  assert (sizeJob > 0);
+  filteredAsserts(dest, src, nJob, sizeJob, filter);
 
   TYPE *d = dest;
   TYPE *s = src;
@@ -242,11 +266,7 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
 }
 
 void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter, int nThreads) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (filter != NULL);
-  assert ((int) nJob >= 0);
-  assert (sizeJob > 0);
+  filteredAsserts(dest, src, nJob, sizeJob, filter);
   assert (nFilter >= 0);
 
   TYPE *d = dest;
@@ -273,11 +293,7 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
 }
 
 void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (filter != NULL);
-  assert ((int) nJob >= 0);
-  assert (sizeJob > 0);
+  filteredAsserts(dest, src, nJob, sizeJob, filter);
 
   char *d = dest;
   char *s = src;
@@ -291,13 +307,7 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
 }
 
 void mapPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (workerList != NULL);
-  assert ((int) nJob >= 0);
-  assert (sizeJob > 0);
-  for (size_t i = 0; i < nWorkers; i++)
-    assert (workerList[i] != NULL);
+  pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
 
   TYPE *d = dest;
   TYPE *s = src;
@@ -316,13 +326,7 @@ void mapPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*work
 }
 
 void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (workerList != NULL);
-  assert ((int) nJob >= 0);
-  assert (sizeJob > 0);
-  for (size_t i = 0; i < nWorkers; i++)
-    assert (workerList[i] != NULL);
+  pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
 
   /*
    * In this version of the algorithm, a worker accompanies
@@ -353,13 +357,7 @@ void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void 
 }
 
 void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
-  assert (dest != NULL);
-  assert (src != NULL);
-  assert (workerList != NULL);
-  assert ((int) nJob >= 0);
-  assert (sizeJob > 0);
-  for (size_t i = 0; i < nWorkers; i++)
-    assert (workerList[i] != NULL);
+  pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
 
   /*
    * In this version, the data is processed sequentially.
