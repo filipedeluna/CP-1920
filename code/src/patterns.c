@@ -227,14 +227,14 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   TYPE *d = dest;
   TYPE *s = src;
 
-  int *bitSumArray = calloc(nJob, sizeof(int));
-  exclusiveScan(bitSumArray, (void *) filter, nJob, sizeJob, workerAddForPack);
+  long *bitSumArray = calloc(nJob, sizeof(long));
+  exclusiveScan(bitSumArray, (void *) filter, nJob, sizeof(long), workerAddForPack);
 
   #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
   #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
       if (filter[i]) {
-          memcpy(&d[(size_t) bitSumArray[i]], &s[i], sizeJob);
+          memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
       }
   }
 
