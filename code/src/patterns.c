@@ -151,7 +151,9 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+
   basicAsserts2(dest, src, worker);
+
 
   /*
   * Implementation based on Structured Parallel Programming by Michael McCool et al.
@@ -159,13 +161,13 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   * This is the inclusive scan
   */
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   if (nJob == 0)
     return;
 
-  d[0] = s[0];
+  memcpy(d, s, sizeJob);
 
   if (nJob == 1)
     return;
@@ -178,9 +180,11 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   // Allocate space to hold the reductions of phase 1 and 2
   // Set first position for both as the first value of the src array
-  TYPE *phase1reduction = calloc(nTiles, sizeJob);
-  TYPE *phase2reduction = calloc(nTiles, sizeJob);
-  phase1reduction[0] = phase2reduction[0] = s[0];
+  char *phase1reduction = calloc(nTiles, sizeJob);
+  char *phase2reduction = calloc(nTiles, sizeJob);
+  memcpy(phase1reduction, s, sizeJob);
+  memcpy(phase2reduction, s, sizeJob);
+
 
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
@@ -196,18 +200,18 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
 
     // Reduce tile
-    reduceImpl(&phase1reduction[tile + 1], &s[tileIndex], tileSizeWithOffset, sizeJob, worker, 1);
+    reduceImpl(&phase1reduction[(tile + 1) * sizeJob], &s[tileIndex * sizeJob], tileSizeWithOffset, sizeJob, worker, 1);
   }
 
   // Do phase 2 reductions
   for (int tile = 1; tile < nTiles; tile++)
-    worker(&phase2reduction[tile], &phase2reduction[tile - 1], &phase1reduction[tile]);
+    worker(&phase2reduction[tile * sizeJob], &phase2reduction[(tile - 1) * sizeJob], &phase1reduction[tile * sizeJob]);
 
   free(phase1reduction);
 
   // Do final phase
   #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
-    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s)
+    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
     // Calculate if this tile needs to do extra job
@@ -218,17 +222,17 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
 
     // Set value of first value of tile from phase 2
-    worker(&d[tileIndex], &phase2reduction[tile], &s[tileIndex]);
+    worker(&d[tileIndex * sizeJob], &phase2reduction[tile * sizeJob], &s[tileIndex * sizeJob]);
 
     for (size_t i = 1; i < tileSizeWithOffset; i++)
-      worker(&d[i + tileIndex], &d[i - 1 + tileIndex], &s[i + tileIndex]);
+      worker(&d[(i + tileIndex) * sizeJob], &d[(i - 1 + tileIndex) * sizeJob], &s[(i + tileIndex) * sizeJob]);
   }
 
   free(phase2reduction);
 }
 
 void inclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  scan(dest, src, nJob - 1, sizeJob, worker);
+  scan(dest, src, nJob, sizeJob, worker);
 }
 
 void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
