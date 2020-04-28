@@ -10,15 +10,21 @@
  *  UTILS
 */
 size_t min(size_t a, size_t b) {
+  if ((long) a < 0)
+    a = 0;
+
   if (a < b)
     return a;
-  else return b;
+  return b;
 }
 
 size_t max(size_t a, size_t b) {
+  if ((long) a < 0)
+    a = 0;
+
   if (a > b)
     return a;
-  else return b;
+  return b;
 }
 
 size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
@@ -399,7 +405,7 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
   for (size_t i = 0; i < nJob; i++) {
     TYPE result = 0;
 
-    for (size_t j = max(i - nShift, 0); j < min(i + nShift, nJob); j++)
+    for (size_t j = max(i - nShift, 0); j <= min(i + nShift, nJob); j++)
       worker(&result, &s[j]);
 
     memcpy(&d[i], &result, sizeJob);

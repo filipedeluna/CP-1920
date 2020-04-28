@@ -76,8 +76,8 @@ static void workerAddOne(void *a, const void *b) {
 }
 
 static void workerAccum(void *a, const void *b) {
-  // a = a + b
-  *(TYPE *) a = *(TYPE *) a + *(TYPE *) b;
+  // a += b
+  *(TYPE *) a += *(TYPE *) b;
 
   if (WEIGHTED_MODE)
     addWeight();
@@ -270,12 +270,13 @@ void testFarm(void *src, size_t n, size_t size) {
 void testStencil(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  srand(time(0));
-  int nShift = (rand() % 5) + 1;
+  // Need static value for accurate tests, although random is fun
+  // srand(time(0));
+  // int nShift = (rand() % 5) + 1;
 
-  printf("Stencil shift size: %d\n", nShift);
+  printf("Stencil shift size: %d\n", 5 /* nShift */);
 
-  stencil(dest, src, n, size, workerAccum, nShift);
+  stencil(dest, src, n, size, workerAccum, 5);
 
   printTYPE(dest, n, __func__);
 
