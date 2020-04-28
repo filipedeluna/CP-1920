@@ -36,6 +36,11 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
          : leftOverTiles * (tileSize + 1) + (tile - leftOverTiles) * tileSize;
 }
 
+static void workerAddForPack(void *a, const void *b, const void *c) {
+    // a = b + c
+    *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
+}
+
 void basicAsserts(void *dest, void *src, void (*worker)(void *v1, const void *v2)) {
   assert (dest != NULL);
   assert (src != NULL);
@@ -245,21 +250,25 @@ void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*wo
   scan((TYPE *) dest + 1, src, nJob - 1, sizeJob, worker);
 }
 
+
 int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
   filteredAsserts(dest, src, nJob, sizeJob, filter);
 
-  char *d = dest;
-  char *s = src;
+  TYPE *d = dest;
+  TYPE *s = src;
 
-  int pos = 0;
+  int *bitSumArray = calloc(nJob, sizeof(int));
+  exclusiveScan(bitSumArray, (void *) filter, nJob, sizeof(int), workerAddForPack);
+
+  #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
+  #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
-    if (filter[i]) {
-      memcpy(&d[pos * sizeJob], &s[i * sizeJob], sizeJob);
-      pos++;
-    }
+      if (filter[i]) {
+          memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
+      }
   }
 
-  return pos;
+  return bitSumArray[nJob] + 1;
 }
 
 void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter, int nThreads) {
