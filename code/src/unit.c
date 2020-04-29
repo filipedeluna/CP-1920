@@ -286,7 +286,7 @@ void testStencil(void *src, size_t n, size_t size) {
 void testParallelPrefix(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  inclusiveScan(dest, src, n, size, workerAdd);
+  parallelPrefix(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 

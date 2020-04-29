@@ -2,10 +2,10 @@
 #include <string.h>
 #include <assert.h>
 #include <malloc.h>
+#include <math.h>
 #include <omp.h>
 #include "patterns.h"
 #include "args.h"
-#include "math.h"
 
 /*
  *  UTILS
@@ -76,6 +76,25 @@ struct treeNode {
     TYPE sum;
     TYPE fromLeft;
 } treeNode;
+
+/*
+ * TEMP TEST
+*/
+void printTree(struct treeNode *tree, size_t nJob) {
+  int h = 1;
+  for (size_t i = 0; i < nJob; i++) {
+    int currentHeight = (int) log2(i + 1) + 1;
+
+    if (currentHeight != h) {
+      printf("\n");
+      h++;
+    }
+
+    printf("%.0lf ", tree[i].sum);
+  }
+
+  printf("\n\n");
+}
 
 /*
  *  Parallel Patterns
@@ -444,46 +463,53 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 
   // Create tree structure
   // Calculate how many levels tree will have and verify if it is odd or not (one less element)
-  int treeLevels = (int) log2(nJob);
+  int treeHeight = (int) log2(nJob) + 1;
   struct treeNode *tree = calloc(nJob, sizeof(treeNode));
   int nThreads = omp_get_max_threads();
 
-  TYPE *d = dest;
+  //TYPE *d = dest;
   TYPE *s = src;
 
   // Begin up pass
   // Travel each level and do computations
-  for (int level = treeLevels - 1; level >= 0; level--) {
+  for (int level = treeHeight - 1; level >= 0; level--) {
     // Calculate current and next levels
     size_t firstNode = pow(2, level) - 1;
     size_t lastNode = min(pow(2, level + 1) - 1, nJob);
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
-    shared(worker, nJob, d, s, sizeJob, tree, treeLevels, level, firstNode, lastNode)
+    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node < lastNode; node++) {
-      // If last level
-      if (level == treeLevels - pow(2, level) - 1) {
-        tree[node].sum = s[node - firstNode];
+      // Last level ----------------------------
+      if (level == treeHeight - 1) {
+        tree[node].sum = s[node];
         continue;
       }
 
-      // Another upper level
+      // Upper levels ----------------------------
+      // Check if node has left child
+      if (node * 2 + 1 < nJob)
+        tree[node].sum = s[node * 2 + 1];
+
       // Check if node has right child
-      if (node * 2 + 1 < nJob) {
-        // Check if node has left child
-        if (node * 2 + 1 < nJob)
-          worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
-        else
-          tree[node].sum = s[node * 2 + 1];
-      } else
-        tree[node].sum = 0;
-    }
-  }
+      if (node * 2 + 2 < nJob) {
+        worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
+        continue;
+      }
 
-  for (size_t i = 0; i < nJob; i++) {
-    printf("%.0lf ", tree[i].sum);
+      if (node * 2 + 2 < nJob)
+        worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
+      else
+        tree[node].sum = s[node * 2 + 1];
+    } else
+    tree[node].sum = 0;
   }
+}
 
-  free(tree);
+
+printTree(tree, nJob
+);
+
+free(tree);
 }
