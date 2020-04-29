@@ -481,35 +481,30 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node < lastNode; node++) {
-      // Last level ----------------------------
+      // Last level only has leafs - assign value ---------------
       if (level == treeHeight - 1) {
         tree[node].sum = s[node];
         continue;
       }
 
-      // Upper levels ----------------------------
-      // Check if node has left child
-      if (node * 2 + 1 < nJob)
-        tree[node].sum = s[node * 2 + 1];
-
-      // Check if node has right child
-      if (node * 2 + 2 < nJob) {
-        worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
+      // Upper levels need to compute leafs ----------------------
+      // Check if node has left and right children
+      if (node * 2 + 1 < nJob) {
+        if (node * 2 + 2 < nJob)
+          worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
+        else
+          tree[node].sum = s[node * 2 + 1];
         continue;
       }
 
-      if (node * 2 + 2 < nJob)
-        worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
-      else
-        tree[node].sum = s[node * 2 + 1];
-    } else
-    tree[node].sum = 0;
+      // If node has no children - its a leaf - assign value -------
+      tree[node].sum = s[node];
+    }
   }
-}
 
 
-printTree(tree, nJob
-);
+  printTree(tree, nJob
+  );
 
-free(tree);
+  free(tree);
 }
