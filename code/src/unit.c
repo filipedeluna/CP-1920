@@ -286,7 +286,11 @@ void testStencil(void *src, size_t n, size_t size) {
 void testParallelPrefix(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  parallelPrefix(dest, src, n, size, workerAdd);
+  TYPE src2[] = {6, 4, 16, 10, 16, 14, 2, 8};
+  size_t n2 = 8;
+  (void) src;
+
+  parallelPrefix(dest, src2, n2, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
