@@ -457,80 +457,30 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   for (int level = treeLevels - 1; level >= 0; level--) {
 
     // Calculate current and next levels
-    long firstNode = (long) pow(2, level) - 1;
-    long lastNode = (long) min(pow(2, level + 1) - 1, nJob);
+    size_t firstNode = pow(2, level) - 1;
+    size_t lastNode = min(pow(2, level + 1) - 1, nJob);
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
     shared(worker, nJob, d, s, sizeJob, tree, treeLevels, level, firstNode, lastNode)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node < lastNode; node++) {
       // If last level
-      if (level == treeLevels - 1)
-        tree[node].sum = s[(node - pow(2, level) - 1)];
+      if (level == treeLevels - pow(2, level) - 1) {
+        tree[node].sum = s[node - firstNode];
+        continue;
+      }
+
+      // Another upper level
+      // Check if node has right child
+      if (node * 2 + 1 < nJob) {
+        // Check if node has left child
+        if (node * 2 + 1 < nJob)
+          worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
+        else
+          tree[node].sum = s[node * 2 + 1];
+      }
     }
   }
 
-
-  memcpy(d, s, sizeJob);
-
-  if (nJob == 1)
-    return;
-
-  // Set size of tiles in relation to number of threads
-  // set how many left over jobs, making a few threads work an extra job
-  size_t tileSize = (nJob - 1) / omp_get_max_threads();
-  int leftOverJobs = (int) ((nJob - 1) % omp_get_max_threads());
-  int nTiles = min((nJob - 1), omp_get_max_threads());
-
-  // Allocate space to hold the reductions of phase 1 and 2
-  // Set first position for both as the first value of the src array
-  char *phase1reduction = calloc(nTiles, sizeJob);
-  char *phase2reduction = calloc(nTiles, sizeJob);
-  memcpy(phase1reduction, s, sizeJob);
-  memcpy(phase2reduction, s, sizeJob);
-
-
-  // Start phase 1 for each tile with one tile per processor
-  // If there are less jobs than processors, only start the necessary tiles
-  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
-    shared(leftOverJobs, worker, tileSize, phase1reduction, nTiles, s, sizeJob)
-  #pragma omp for schedule(static)
-  for (int tile = 0; tile < nTiles - 1; tile++) {
-    // Calculate if this tile needs to do extra job
-    // use tile size to create tile reduction array
-    size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
-
-    // Get tile index with + 1 offset
-    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
-
-    // Reduce tile
-    reduceImpl(&phase1reduction[(tile + 1) * sizeJob], &s[tileIndex * sizeJob], tileSizeWithOffset, sizeJob, worker, 1);
-  }
-
-  // Do phase 2 reductions
-  for (int tile = 1; tile < nTiles; tile++)
-    worker(&phase2reduction[tile * sizeJob], &phase2reduction[(tile - 1) * sizeJob], &phase1reduction[tile * sizeJob]);
-
-  free(phase1reduction);
-
-  // Do final phase
-  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
-    shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
-  #pragma omp for schedule(static)
-  for (int tile = 0; tile < nTiles; tile++) {
-    // Calculate if this tile needs to do extra job
-    // use tile size to create tile reduction array
-    size_t tileSizeWithOffset = tileSize + (tile < leftOverJobs ? 1 : 0);
-
-    // Get tile index with + 1 offset
-    size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize) + 1;
-
-    // Set value of first value of tile from phase 2
-    worker(&d[tileIndex * sizeJob], &phase2reduction[tile * sizeJob], &s[tileIndex * sizeJob]);
-
-    for (size_t i = 1; i < tileSizeWithOffset; i++)
-      worker(&d[(i + tileIndex) * sizeJob], &d[(i - 1 + tileIndex) * sizeJob], &s[(i + tileIndex) * sizeJob]);
-  }
-
-  free(phase2reduction);
+  free(tree);
 }
