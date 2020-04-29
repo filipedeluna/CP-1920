@@ -445,7 +445,6 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   // Create tree structure
   // Calculate how many levels tree will have and verify if it is odd or not (one less element)
   int treeLevels = (int) log2(nJob);
-  int isOdd = nJob % 2;
   struct treeNode *tree = calloc(nJob, sizeof(treeNode));
   int nThreads = omp_get_max_threads();
 
@@ -455,7 +454,6 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   // Begin up pass
   // Travel each level and do computations
   for (int level = treeLevels - 1; level >= 0; level--) {
-
     // Calculate current and next levels
     size_t firstNode = pow(2, level) - 1;
     size_t lastNode = min(pow(2, level + 1) - 1, nJob);
@@ -478,8 +476,13 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
           worker(&tree[node], &tree[node * 2 + 1], &tree[node * 2 + 2]);
         else
           tree[node].sum = s[node * 2 + 1];
-      }
+      } else
+        tree[node].sum = 0;
     }
+  }
+
+  for (size_t i = 0; i < nJob; i++) {
+    printf("%.0lf ", tree[i].sum);
   }
 
   free(tree);

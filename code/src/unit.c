@@ -283,6 +283,16 @@ void testStencil(void *src, size_t n, size_t size) {
   free(dest);
 }
 
+void testParallelPrefix(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  inclusiveScan(dest, src, n, size, workerAdd);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
 //=======================================================
 // List of unit test functions
 //=======================================================
@@ -301,7 +311,8 @@ TESTFUNCTION testFunction[] = {
     testMapPipeline,
     testSequentialPipeline,
     testFarm,
-    testStencil
+    testStencil,
+    testParallelPrefix
 };
 
 char *testNames[] = {
@@ -316,7 +327,8 @@ char *testNames[] = {
     "testMapPipeline",
     "testSequentialPipeline",
     "testFarm",
-    "testStencil"
+    "testStencil",
+    "testParallelPrefix"
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);
