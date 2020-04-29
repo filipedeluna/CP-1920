@@ -73,10 +73,8 @@ void pipelineAsserts(void *dest, void *src, size_t nJob, size_t sizeJob, void (*
 }
 
 struct treeNode {
-    size_t rangeHigh;
-    size_t rangeLow;
-    size_t sum;
-    size_t fromLeft;
+    TYPE sum;
+    TYPE fromLeft;
 } treeNode;
 
 /*
@@ -431,24 +429,47 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   basicAsserts2(dest, src, worker);
 
   /*
-  * Up/Down pass implementation based on the slides.
+  * Up/Down pass implementation based on the slides and
+  * https://www.cs.princeton.edu/courses/archive/fall13/cos326/lec/23-parallel-scan.pdf
   * This is an inclusive scan
   */
 
-  // Create tree structure
-  size_t treeLevels = log(2 * nJob);
-  int isOdd = nJob % 2;
-  struct treeNode *tree = calloc(nJob, sizeof(treeNode));
-
-  // Begin up pass
-
-
-
-  char *d = dest;
-  char *s = src;
-
   if (nJob == 0)
     return;
+
+  if (nJob == 1) {
+    memcpy(dest, src, sizeJob);
+    return;
+  }
+
+  // Create tree structure
+  // Calculate how many levels tree will have and verify if it is odd or not (one less element)
+  int treeLevels = (int) log2(nJob);
+  int isOdd = nJob % 2;
+  struct treeNode *tree = calloc(nJob, sizeof(treeNode));
+  int nThreads = omp_get_max_threads();
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  // Begin up pass
+  // Travel each level and do computations
+  for (int level = treeLevels - 1; level >= 0; level--) {
+
+    // Calculate current and next levels
+    long firstNode = (long) pow(2, level) - 1;
+    long lastNode = (long) min(pow(2, level + 1) - 1, nJob);
+
+    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    shared(worker, nJob, d, s, sizeJob, tree, treeLevels, level, firstNode, lastNode)
+    #pragma omp for schedule(static)
+    for (size_t node = firstNode; node < lastNode; node++) {
+      // If last level
+      if (level == treeLevels - 1)
+        tree[node].sum = s[(node - pow(2, level) - 1)];
+    }
+  }
+
 
   memcpy(d, s, sizeJob);
 
