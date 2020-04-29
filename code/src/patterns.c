@@ -461,10 +461,17 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     return;
   }
 
-  // Create tree structure
+  // Create tree structure ----------------------
+  // Calculate how many elems tree has in order to have nJob elements at base
+  size_t nTreeElems = nJob < 1
+                      ? nJob + 1
+                      : nJob % 2 == 0
+                        ? nJob * 2 + 1
+                        : nJob * 2 + 2;
+
   // Calculate how many levels tree will have and verify if it is odd or not (one less element)
-  int treeHeight = (int) log2(nJob * 2 - 1) + 1;
-  struct treeNode *tree = calloc(nJob, sizeof(treeNode));
+  int treeHeight = (int) log2(nTreeElems) + 1;
+  struct treeNode *tree = calloc(nTreeElems, sizeof(treeNode));
   int nThreads = omp_get_max_threads();
 
   //TYPE *d = dest;
@@ -475,23 +482,25 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   for (int level = treeHeight - 1; level >= 0; level--) {
     // Calculate current and next levels
     size_t firstNode = pow(2, level) - 1;
-    size_t lastNode = min(pow(2, level + 1) - 1, nJob);
+    size_t lastNode = min(pow(2, level + 1) - 1, nTreeElems);
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
-    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode)
+    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node < lastNode; node++) {
       // Check if node has left and/or right children - not leaf
-      if (node * 2 + 1 < nJob) {
-        if (node * 2 + 2 < nJob)
+      if (node * 2 + 1 < nTreeElems) {
+        if (node * 2 + 2 < nTreeElems)
           worker(&tree[node].sum, &tree[node * 2 + 1].sum, &tree[node * 2 + 2].sum);
         else
-          tree[node].sum = s[node * 2 + 1];
+          tree[node].sum = tree[node * 2 + 1].sum;
         continue;
       }
 
       // If node has no children - its a leaf - assign value -------
-      tree[node].sum = s[node];
+      // Check if last level. If not - ignore unused node
+      if (level == treeHeight - 1)
+        tree[node].sum = s[node - firstNode];
     }
   }
 
@@ -502,12 +511,28 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   for (int level = 0; level < treeHeight; level++) {
     // Calculate current and next levels
     size_t firstNode = pow(2, level) - 1;
-    size_t lastNode = min(pow(2, level + 1) - 1, nJob);
+    size_t lastNode = min(pow(2, level + 1) - 1, nTreeElems);
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
-    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode)
+    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node < lastNode; node++) {
+      // Check if node has left and/or right children - not leaf
+      if (node * 2 + 1 < nTreeElems) {
+        if (node * 2 + 2 < nTreeElems)
+          worker(&tree[node].sum, &tree[node * 2 + 1].sum, &tree[node * 2 + 2].sum);
+        else
+          tree[node].sum = tree[node * 2 + 1].sum;
+        continue;
+      }
+
+      // If node has no children - its a leaf - assign value -------
+      // Check if last level. If not - ignore unused node
+      if (level == treeHeight - 1)
+        tree[node].sum = s[node - firstNode];
+
+      // ----------------------------------------------
+
       // If root - assign value of 0 from left
       if (level == 0)
         tree[node].fromLeft = 0;
@@ -527,7 +552,6 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       tree[node].sum = s[node];
     }
   }
-
 
   printTree(tree, nJob);
 
