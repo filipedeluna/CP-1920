@@ -90,7 +90,7 @@ void printTree(struct treeNode *tree, size_t nJob) {
       h++;
     }
 
-    printf("%.0lf ", tree[i].sum);
+    printf("(%.0lf, %.0lf) ", tree[i].sum, tree[i].fromLeft);
   }
 
   printf("\n\n");
@@ -474,7 +474,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   struct treeNode *tree = calloc(nTreeElems, sizeof(treeNode));
   int nThreads = omp_get_max_threads();
 
-  //TYPE *d = dest;
+  TYPE *d = dest;
   TYPE *s = src;
 
   // Begin up pass
@@ -504,7 +504,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     }
   }
 
-  printTree(tree, nJob);
+  printTree(tree, nTreeElems);
 
   // Begin down pass
   // Travel each level and do computations
@@ -514,46 +514,28 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     size_t lastNode = min(pow(2, level + 1) - 1, nTreeElems);
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
-    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
+    shared(worker, nJob, d, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node < lastNode; node++) {
-      // Check if node has left and/or right children - not leaf
-      if (node * 2 + 1 < nTreeElems) {
-        if (node * 2 + 2 < nTreeElems)
-          worker(&tree[node].sum, &tree[node * 2 + 1].sum, &tree[node * 2 + 2].sum);
-        else
-          tree[node].sum = tree[node * 2 + 1].sum;
+      // If root - assign value of 0 from left
+      if (level == 0) {
+        tree[node].fromLeft = 0;
         continue;
       }
 
-      // If node has no children - its a leaf - assign value -------
-      // Check if last level. If not - ignore unused node
+      // If its not root, check if node is right or left node
+      if (node % 2 == 0)
+        worker(&tree[node].fromLeft, &tree[node - 1].fromLeft, &tree[node - 1].sum);
+      else
+        tree[node].fromLeft = tree[(int) ((node - 1) / 2)].fromLeft;
+
+      // If at last level, assign value to destiny array
       if (level == treeHeight - 1)
-        tree[node].sum = s[node - firstNode];
-
-      // ----------------------------------------------
-
-      // If root - assign value of 0 from left
-      if (level == 0)
-        tree[node].fromLeft = 0;
-
-      // Check if node has left child - not leaf
-      if (node * 2 + 1 < nJob) {
-        // Check if node is right child
-        if (node % 2 == 0)
-          worker(&tree[node].fromLeft, &tree[node - 1].sum, &tree[node - 1].fromLeft);
-        else
-          tree[node].fromLeft = tree[(node - 1) / 2].fromLeft;
-
-        &d[node]
-      }
-
-      // If node has no children - its a leaf - assign value -------
-      tree[node].sum = s[node];
+        worker(&d[node - firstNode], &tree[node].fromLeft, &tree[node].sum);
     }
   }
 
-  printTree(tree, nJob);
+  printTree(tree, nTreeElems);
 
   free(tree);
 }
