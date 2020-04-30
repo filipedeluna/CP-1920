@@ -482,12 +482,14 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   for (int level = treeHeight; level > 0; level--) {
     // Calculate current and next levels
     size_t firstNode = pow(2, level - 1) - 1;
-    size_t lastNode = min(pow(2, level) - 1, nTreeElems);
+    size_t lastNode = level == treeHeight
+                      ? nTreeElems - 1
+                      : pow(2, level) - 2;
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
     shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
-    for (size_t node = firstNode; node < lastNode; node++) {
+    for (size_t node = firstNode; node <= lastNode; node++) {
       // Check if node has left and/or right children - not leaf
       if (node * 2 + 1 < nTreeElems) {
         if (node * 2 + 2 < nTreeElems)
@@ -504,23 +506,25 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     }
   }
 
-  printTree(tree, nTreeElems);
-
   // Begin down pass
   // Travel each level and do computations
   for (int level = 1; level <= treeHeight; level++) {
     // Calculate current and next levels
     size_t firstNode = pow(2, level - 1) - 1;
-    size_t lastNode = min(pow(2, level) - 1, nTreeElems);
+    size_t lastNode = level == treeHeight
+                      ? nTreeElems - 1
+                      : pow(2, level) - 2;
 
     #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
     shared(worker, nJob, d, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
-    for (size_t node = firstNode; node < lastNode; node++) {
-      // If root - assign value of 0 from left
-      if (level == 0) {
+    for (size_t node = firstNode; node <= lastNode; node++) {
+      // If first node in level, assign value of 0 from left
+      if (node == firstNode) {
         tree[node].fromLeft = 0;
-        continue;
+
+        if (level == 1)
+          continue;
       }
 
       // If its not root, check if node is right or left node
@@ -530,16 +534,12 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
         worker(&tree[node].fromLeft, &tree[node].fromLeft, &tree[(node - 1) / 2].fromLeft);
 
       // If at last level, assign value to destiny array
-      if (level == treeHeight - 1)
+      if (level == treeHeight) {
         worker(&d[node - firstNode], &tree[node].fromLeft, &tree[node].sum);
+        continue;
+      }
     }
   }
 
-  printTree(tree, nTreeElems);
-
-  for (size_t i = 0; i < nJob; i++) {
-    printf("%.0f ", d[i]);
-  }
-
-  //free(tree);
+  free(tree);
 }
