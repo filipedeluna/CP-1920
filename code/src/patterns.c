@@ -545,7 +545,10 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 }
 
 // Standalone map for tests
-void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  basicAsserts2(dest, src, worker);
+  assert(nJob >= 2);
+
   /*
    * Based on McCool book - Structured Parallel Programming - Chapter 7.5.
   */
@@ -568,46 +571,59 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
     // Calculate number of cycles for this sweep
     size_t nCycles = i < width ? i : width - (i - width);
 
+    // Calculate base node vertical and horizontal position
+    // Derive base node position in array
+    // The root (0,0) is the top-left corner
+    size_t baseV = min(i, height);
+    size_t baseH = i < width ? 0 : height;
+    size_t basePos = baseH * width + baseH;
+
     #pragma omp single
-    for (size_t h = 0; h < min(width, i + 1); h++) {
-      // Deal with edge-cases in beginning
-      if (h == 0) {
-        #pragma omp task
-        compMatrix[width * h + w] = 2;
+    for (size_t j = 0; j < nCycles; j++) {
+      // Calculate current node
+      size_t currV = baseV - 1;
+      size_t currH = baseH - 1;
+      size_t currPos = currH * width + currH;
+
+      // Deal with root case
+      if (currV == 0 && currH == 0) {
+        worker(&compMatrix[0], &s[0], &s[width]);
         continue;
       }
 
-      if (w == 0) {
-        #pragma omp task
-        compMatrix[width * h + w] = 2;
+      // Deal with top and left edge-cases
+      if (currV == 0) {
+        #pragma omp task default(none) shared(s, currH, currPos, worker, compMatrix)
+        worker(&compMatrix[currPos], &compMatrix[basePos - 1], &s[currH]);
         continue;
-
       }
 
-      // Deal with edge-cases in end
-      if (h == 0) {
-        #pragma omp task
+      if (currH == 0) {
+        #pragma omp task default(none) shared(s, currV, currPos, worker, compMatrix, width)
+        worker(&compMatrix[currPos], &compMatrix[basePos - width], &s[width + baseV - 1]);
         continue;
-
       }
 
-      if (w == 0) {
-        #pragma omp task
-        continue;
+      // Normal case
+      #pragma omp task default(none) shared(j, s, currH, currPos, worker, compMatrix)
+      worker(&compMatrix[currPos - (j * width - i)], &compMatrix[basePos - 1], &s[currH]);
 
+      // Deal with bottom and right edge-cases
+      if (currV == height - 1) {
+        #pragma omp task default(none) shared(d, currH, currPos, sizeJob, compMatrix)
+        memcpy(&d[currH], &compMatrix[basePos], sizeJob);
       }
 
+      if (currH == width - 1) {
+        #pragma omp task default(none) shared(d, currH, currV, currPos, sizeJob, compMatrix)
+        memcpy(&d[currH + baseV + 1], &compMatrix[basePos], sizeJob);
+      }
+
+      // If last node
+      if (currV == height - 1 && currH == width - 1) {
+        memcpy(&d[width - 1], &compMatrix[currPos], sizeJob);
+        memcpy(&d[width], &compMatrix[basePos], sizeJob);
+      }
     }
-
   }
-
-  /*
- void my_recurrence(size_t v, size_t h, const float a[v][h], float b[v][h])
- ) {
- for (int i=1; i<v; ++i)
-  for (int j=1; j<h; ++j)
-   b[i][j] = f(b[i−1][j], b[i][j−1], a[i][j]);
-
-   */
 }
-
