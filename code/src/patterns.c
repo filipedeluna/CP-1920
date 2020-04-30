@@ -581,8 +581,8 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
     #pragma omp single
     for (size_t j = 0; j < nCycles; j++) {
       // Calculate current node
-      size_t currV = baseV - 1;
-      size_t currH = baseH - 1;
+      size_t currV = baseV - j;
+      size_t currH = baseH + j;
       size_t currPos = currH * width + currH;
 
       // Deal with root case
@@ -594,35 +594,29 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
       // Deal with top and left edge-cases
       if (currV == 0) {
         #pragma omp task default(none) shared(s, currH, currPos, worker, compMatrix)
-        worker(&compMatrix[currPos], &compMatrix[basePos - 1], &s[currH]);
+        worker(&compMatrix[currPos], &compMatrix[currPos - 1], &s[currH]);
         continue;
       }
 
       if (currH == 0) {
         #pragma omp task default(none) shared(s, currV, currPos, worker, compMatrix, width)
-        worker(&compMatrix[currPos], &compMatrix[basePos - width], &s[width + baseV - 1]);
+        worker(&compMatrix[currPos], &compMatrix[currPos - width], &s[currV + width - 1]);
         continue;
       }
 
       // Normal case
-      #pragma omp task default(none) shared(j, s, currH, currPos, worker, compMatrix)
-      worker(&compMatrix[currPos - (j * width - i)], &compMatrix[basePos - 1], &s[currH]);
+      #pragma omp task default(none) shared(j, s, currH, currPos, worker, compMatrix, width)
+      worker(&compMatrix[currPos], &compMatrix[currPos - width - 1], &compMatrix[currPos - 1]);
 
       // Deal with bottom and right edge-cases
       if (currV == height - 1) {
         #pragma omp task default(none) shared(d, currH, currPos, sizeJob, compMatrix)
-        memcpy(&d[currH], &compMatrix[basePos], sizeJob);
+        memcpy(&d[currH], &compMatrix[currPos], sizeJob);
       }
 
       if (currH == width - 1) {
-        #pragma omp task default(none) shared(d, currH, currV, currPos, sizeJob, compMatrix)
-        memcpy(&d[currH + baseV + 1], &compMatrix[basePos], sizeJob);
-      }
-
-      // If last node
-      if (currV == height - 1 && currH == width - 1) {
-        memcpy(&d[width - 1], &compMatrix[currPos], sizeJob);
-        memcpy(&d[width], &compMatrix[basePos], sizeJob);
+        #pragma omp task default(none) shared(d, currH, currV, currPos, sizeJob, compMatrix, width)
+        memcpy(&d[currV + width - 1], &compMatrix[currPos], sizeJob);
       }
     }
   }
