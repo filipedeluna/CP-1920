@@ -321,17 +321,19 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
   gatherImpl(dest, src, nJob, sizeJob, filter, nFilter, omp_get_max_threads());
 }
 
-void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {//this scatter is atomic
   filteredAsserts(dest, src, nJob, sizeJob, filter);
 
-  char *d = dest;
-  char *s = src;
+  TYPE *d = dest;
+  TYPE *s = src;
 
   #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
   #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
     // assert (filter[i] < (int) nJob);
-    memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
+    //memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
+    #pragma omp atomic write
+    d[filter[i]] = s[i];
   }
 }
 
