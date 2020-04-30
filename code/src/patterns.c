@@ -569,20 +569,20 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
     shared(worker, nJob, d, s, sizeJob, width, height, compMatrix)
   for (size_t i = 0; i < width + height - 1; i++) {
     // Calculate number of cycles for this sweep
-    size_t nCycles = i < width ? i + 1 : width - (i - width) + 1;
+    size_t nCycles = i < width ? i + 1 : width - (i - width) - 1;
 
     // Calculate base node vertical and horizontal position
     // Derive base node position in array
     // The root (0,0) is the top-left corner
-    size_t baseV = nCycles <= width ? nCycles - 1 : height;
-    size_t baseH = nCycles <= width ? 0 : height;
+    size_t baseH = i < width ? 0 : i - width + 1;
+    size_t baseV = i < width ? i : height - 1;
 
     #pragma omp single
     for (size_t j = 0; j < nCycles; j++) {
       // Calculate current node
-      size_t currV = baseV - (baseV - j);
-      size_t currH = baseH + (baseH - j);
-      size_t currPos = currH * width + currH;
+      size_t currH = baseH + j;
+      size_t currV = baseV - j;
+      size_t currPos = currV * width + currH;
 
       // Deal with root case
       if (currV == 0 && currH == 0) {
@@ -593,19 +593,15 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
       // Deal with top and left edge-cases
       if (currV == 0) {
         #pragma omp task default(none) shared(s, currH, currPos, worker, compMatrix)
-        worker(&compMatrix[currPos], &compMatrix[currPos - 1], &s[currH]);
-        continue;
-      }
-
-      if (currH == 0) {
+        worker(&compMatrix[currPos], &s[currH], &compMatrix[currPos - 1]);
+      } else if (currH == 0) {
         #pragma omp task default(none) shared(s, currV, currPos, worker, compMatrix, width)
-        worker(&compMatrix[currPos], &compMatrix[currPos - width], &s[currV + width - 1]);
-        continue;
+        worker(&compMatrix[currPos], &compMatrix[currPos - width], &s[currV + width]);
+      } else {
+        // Normal case
+        #pragma omp task default(none) shared(j, s, currH, currPos, worker, compMatrix, width)
+        worker(&compMatrix[currPos], &compMatrix[currPos - width], &compMatrix[currPos - 1]);
       }
-
-      // Normal case
-      #pragma omp task default(none) shared(j, s, currH, currPos, worker, compMatrix, width)
-      worker(&compMatrix[currPos], &compMatrix[currPos - width - 1], &compMatrix[currPos - 1]);
 
       // Deal with bottom and right edge-cases
       if (currV == height - 1) {
@@ -615,18 +611,20 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
 
       if (currH == width - 1) {
         #pragma omp task default(none) shared(d, currH, currV, currPos, sizeJob, compMatrix, width)
-        memcpy(&d[currV + width - 1], &compMatrix[currPos], sizeJob);
+        memcpy(&d[currV + width], &compMatrix[currPos], sizeJob);
       }
     }
   }
 
-  for (size_t i = 0; i < nJob; i++) {
+  for (size_t i = 0; i < width * width - nJob % 2; i++) {
     printf("%.0lf  ", compMatrix[i]);
 
-    if (i % width == 0) {
+    if ((i + 1) % width == 0) {
       printf("\n");
     }
   }
+
+  printf("\n");
 
   free(compMatrix);
 }
