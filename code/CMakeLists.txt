@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(main C)
 
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -ansi -pedantic -std=gnu11")
+set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -ansi -pedantic -std=gnu11 -lm")
 set(CMAKE_C_FLAGS_DEBUG "-g")
 
 #set(CMAKE_BUILD_TYPE Release)
@@ -23,4 +23,4 @@ add_executable(main
         src/unit.c
         src/unit.h)
 
-target_link_libraries(main PUBLIC OpenMP::OpenMP_C)
+target_link_libraries(main PUBLIC OpenMP::OpenMP_C m)

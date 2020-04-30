@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include <malloc.h>
+#include <math.h>
 #include <omp.h>
 #include "patterns.h"
 #include "args.h"
@@ -10,15 +11,21 @@
  *  UTILS
 */
 size_t min(size_t a, size_t b) {
+  if ((long) a < 0)
+    a = 0;
+
   if (a < b)
     return a;
-  else return b;
+  return b;
 }
 
 size_t max(size_t a, size_t b) {
+  if ((long) a < 0)
+    a = 0;
+
   if (a > b)
     return a;
-  else return b;
+  return b;
 }
 
 size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
@@ -31,8 +38,8 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
 }
 
 static void workerAddForPack(void *a, const void *b, const void *c) {
-    // a = b + c
-    *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
+  // a = b + c
+  *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
 }
 
 void basicAsserts(void *dest, void *src, void (*worker)(void *v1, const void *v2)) {
@@ -63,6 +70,30 @@ void pipelineAsserts(void *dest, void *src, size_t nJob, size_t sizeJob, void (*
   assert (sizeJob > 0);
   for (size_t i = 0; i < nWorkers; i++)
     assert (workerList[i] != NULL);
+}
+
+struct treeNode {
+    TYPE sum;
+    TYPE fromLeft;
+} treeNode;
+
+/*
+ * TEMP TEST
+*/
+void printTree(struct treeNode *tree, size_t nJob) {
+  int h = 1;
+  for (size_t i = 0; i < nJob; i++) {
+    int currentHeight = (int) log2(i + 1) + 1;
+
+    if (currentHeight != h) {
+      printf("\n");
+      h++;
+    }
+
+    printf("(%.0lf, %.0lf) ", tree[i].sum, tree[i].fromLeft);
+  }
+
+  printf("\n\n");
 }
 
 /*
@@ -156,9 +187,7 @@ void reduce(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(v
 }
 
 void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-
   basicAsserts2(dest, src, worker);
-
 
   /*
   * Implementation based on Structured Parallel Programming by Michael McCool et al.
@@ -257,9 +286,9 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
   #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
-      if (filter[i]) {
-          memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
-      }
+    if (filter[i]) {
+      memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
+    }
   }
 
   return bitSumArray[nJob] + 1;
@@ -390,3 +419,127 @@ void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   map(dest, src, nJob, sizeJob, worker);  // it provides the right result, but is a very very vey bad implementation…
 }
 
+void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), int nShift) {
+  basicAsserts(dest, src, worker);
+  assert(nShift >= 0);
+  /*
+  * Based on McCool book - Structured Parallel Programming - Chapter 7.1.
+  */
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  int nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(worker, nJob, d, s, nShift, sizeJob) num_threads(nThreads)
+  #pragma omp for schedule(static)
+  for (size_t i = 0; i < nJob; i++) {
+    TYPE result = 0;
+
+    for (size_t j = max(i - nShift, 0); j <= min(i + nShift, nJob); j++)
+      worker(&result, &s[j]);
+
+    memcpy(&d[i], &result, sizeJob);
+  }
+}
+
+void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
+  basicAsserts2(dest, src, worker);
+
+  /*
+  * Up/Down pass implementation based on the slides and
+  * https://www.cs.princeton.edu/courses/archive/fall13/cos326/lec/23-parallel-scan.pdf
+  * This is an inclusive scan
+  */
+
+  if (nJob == 0)
+    return;
+
+  if (nJob == 1) {
+    memcpy(dest, src, sizeJob);
+    return;
+  }
+
+  // Create tree structure ----------------------
+  // Calculate how many elems tree has in order to have nJob elements at base
+  size_t nTreeElems = nJob <= 1
+                      ? nJob
+                      : nJob % 2 == 0
+                        ? nJob * 2 - 1
+                        : nJob * 2;
+
+  // Calculate how many levels tree will have and verify if it is odd or not (one less element)
+  int treeHeight = (int) log2(nTreeElems) + 1;
+  struct treeNode *tree = calloc(nTreeElems, sizeof(treeNode));
+  int nThreads = omp_get_max_threads();
+
+  TYPE *s = src;
+  TYPE *d = dest;
+
+  // Begin up pass
+  // Travel each level and do computations
+  for (int level = treeHeight; level > 0; level--) {
+    // Calculate current and next levels
+    size_t firstNode = pow(2, level - 1) - 1;
+    size_t lastNode = level == treeHeight
+                      ? nTreeElems - 1
+                      : pow(2, level) - 2;
+
+    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
+    #pragma omp for schedule(static)
+    for (size_t node = firstNode; node <= lastNode; node++) {
+      // Check if node has left and/or right children - not leaf
+      if (node * 2 + 1 < nTreeElems) {
+        if (node * 2 + 2 < nTreeElems)
+          worker(&tree[node].sum, &tree[node * 2 + 1].sum, &tree[node * 2 + 2].sum);
+        else
+          memcpy(&tree[node].sum, &tree[node * 2 + 1].sum, sizeJob);
+        continue;
+      }
+
+      // If node has no children - its a leaf - assign value -------
+      // Check if last level. If not - ignore unused node
+      if (level == treeHeight)
+        memcpy(&tree[node].sum, &s[node - firstNode], sizeJob);
+    }
+  }
+
+  // Begin down pass
+  // Travel each level and do computations
+  for (int level = 1; level <= treeHeight; level++) {
+    // Calculate current and next levels
+    size_t firstNode = pow(2, level - 1) - 1;
+    size_t lastNode = level == treeHeight
+                      ? nTreeElems - 1
+                      : pow(2, level) - 2;
+
+    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    shared(worker, nJob, d, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
+    #pragma omp for schedule(static)
+    for (size_t node = firstNode; node <= lastNode; node++) {
+      // If first node in level, assign value of 0 from left
+      if (node == firstNode) {
+        tree[node].fromLeft = 0;
+
+        if (level == 1)
+          continue;
+      }
+
+      // If its not root, check if node is right or left node
+      if (node % 2 == 0)
+        worker(&tree[node].fromLeft, &tree[node - 1].fromLeft, &tree[node - 1].sum);
+      else
+        worker(&tree[node].fromLeft, &tree[node].fromLeft, &tree[(node - 1) / 2].fromLeft);
+
+      // If at last level, assign value to destiny array
+      if (level == treeHeight) {
+        worker(&d[node - firstNode], &tree[node].fromLeft, &tree[node].sum);
+        continue;
+      }
+    }
+  }
+
+  free(tree);
+}

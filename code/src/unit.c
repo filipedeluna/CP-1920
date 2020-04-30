@@ -75,6 +75,14 @@ static void workerAddOne(void *a, const void *b) {
     addWeight();
 }
 
+static void workerAccum(void *a, const void *b) {
+  // a += b
+  *(TYPE *) a += *(TYPE *) b;
+
+  if (WEIGHTED_MODE)
+    addWeight();
+}
+
 static void workerMultTwo(void *a, const void *b) {
   // a = b * 2
   *(TYPE *) a = *(TYPE *) b * 2;
@@ -259,6 +267,32 @@ void testFarm(void *src, size_t n, size_t size) {
   free(dest);
 }
 
+void testStencil(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  // Need static value for accurate tests, although random is fun
+  // srand(time(0));
+  // int nShift = (rand() % 5) + 1;
+
+  printf("Stencil shift size: %d\n", 5 /* nShift */);
+
+  stencil(dest, src, n, size, workerAccum, 5);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
+void testParallelPrefix(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  parallelPrefix(dest, src, n, size, workerAdd);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
 //=======================================================
 // List of unit test functions
 //=======================================================
@@ -277,6 +311,8 @@ TESTFUNCTION testFunction[] = {
     testMapPipeline,
     testSequentialPipeline,
     testFarm,
+    testStencil,
+    testParallelPrefix
 };
 
 char *testNames[] = {
@@ -291,6 +327,8 @@ char *testNames[] = {
     "testMapPipeline",
     "testSequentialPipeline",
     "testFarm",
+    "testStencil",
+    "testParallelPrefix"
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);
