@@ -293,6 +293,16 @@ void testParallelPrefix(void *src, size_t n, size_t size) {
   free(dest);
 }
 
+void testHyperplane(void *src, size_t n, size_t size) {
+  TYPE *dest = malloc(n * size);
+
+  hyperplane(dest, src, n, size, workerAdd);
+
+  printTYPE(dest, n, __func__);
+
+  free(dest);
+}
+
 //=======================================================
 // List of unit test functions
 //=======================================================
@@ -312,7 +322,8 @@ TESTFUNCTION testFunction[] = {
     testSequentialPipeline,
     testFarm,
     testStencil,
-    testParallelPrefix
+    testParallelPrefix,
+    testHyperplane
 };
 
 char *testNames[] = {
@@ -328,7 +339,8 @@ char *testNames[] = {
     "testSequentialPipeline",
     "testFarm",
     "testStencil",
-    "testParallelPrefix"
+    "testParallelPrefix",
+    "testHyperplane"
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);

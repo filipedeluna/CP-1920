@@ -563,26 +563,25 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
   size_t width = nJob / 2 + nJob % 2;
 
   // Create computation matrix
-  TYPE *compMatrix = calloc(pow(width, 2), sizeJob);
+  TYPE *compMatrix = calloc(pow(width - nJob % 2, 2), sizeJob);
 
   #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
     shared(worker, nJob, d, s, sizeJob, width, height, compMatrix)
   for (size_t i = 0; i < width + height - 1; i++) {
     // Calculate number of cycles for this sweep
-    size_t nCycles = i < width ? i : width - (i - width);
+    size_t nCycles = i < width ? i + 1 : width - (i - width) + 1;
 
     // Calculate base node vertical and horizontal position
     // Derive base node position in array
     // The root (0,0) is the top-left corner
-    size_t baseV = min(i, height);
-    size_t baseH = i < width ? 0 : height;
-    size_t basePos = baseH * width + baseH;
+    size_t baseV = nCycles <= width ? nCycles - 1 : height;
+    size_t baseH = nCycles <= width ? 0 : height;
 
     #pragma omp single
     for (size_t j = 0; j < nCycles; j++) {
       // Calculate current node
-      size_t currV = baseV - j;
-      size_t currH = baseH + j;
+      size_t currV = baseV - (baseV - j);
+      size_t currH = baseH + (baseH - j);
       size_t currPos = currH * width + currH;
 
       // Deal with root case
@@ -620,4 +619,14 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
       }
     }
   }
+
+  for (size_t i = 0; i < nJob; i++) {
+    printf("%.0lf  ", compMatrix[i]);
+
+    if (i % width == 0) {
+      printf("\n");
+    }
+  }
+
+  free(compMatrix);
 }
