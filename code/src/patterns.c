@@ -337,6 +337,20 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   }
 }
 
+void priorityScatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
+  filteredAsserts(dest, src, nJob, sizeJob, filter);
+
+  char *d = dest;
+  char *s = src;
+
+  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
+  #pragma omp for schedule(static) ordered //priority is given to the elements with higher index in the filter
+  for (int i = 0; i < (int) nJob; i++) {
+    // assert (filter[i] < (int) nJob);
+    memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
+  }
+}
+
 void mapPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
 
