@@ -560,24 +560,26 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
   size_t width = nJob / 2 + nJob % 2;
 
   // Create computation matrix
-  TYPE *compMatrix = calloc(height * width, sizeJob);
+  TYPE *compMatrix = calloc(pow(width, 2), sizeJob);
 
-  for (size_t w = 0; w < width; w++) {
-    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
-    shared(worker, nJob, d, s, sizeJob, width, height)
+  #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    shared(worker, nJob, d, s, sizeJob, width, height, compMatrix)
+  for (size_t i = 0; i < width + height - 1; i++) {
+    // Calculate number of cycles for this sweep
+    size_t nCycles = i < width ? i : width - (i - width);
 
     #pragma omp single
-    for (size_t h = height; h < width; h++) {
-      // Deal with edge-cases in beggining
+    for (size_t h = 0; h < min(width, i + 1); h++) {
+      // Deal with edge-cases in beginning
       if (h == 0) {
         #pragma omp task
-
+        compMatrix[width * h + w] = 2;
         continue;
       }
 
       if (w == 0) {
         #pragma omp task
-
+        compMatrix[width * h + w] = 2;
         continue;
 
       }
@@ -597,24 +599,15 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
 
     }
 
-    }
   }
 
+  /*
+ void my_recurrence(size_t v, size_t h, const float a[v][h], float b[v][h])
+ ) {
+ for (int i=1; i<v; ++i)
+  for (int j=1; j<h; ++j)
+   b[i][j] = f(b[i−1][j], b[i][j−1], a[i][j]);
 
-  #pragma omp parallel default(none) if(nThreads > 1) \
-  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
-  for (size_t i = 0; i < nJob - nWorkers; i++) {
-    for (size_t j = 0; j <= min(j, nWorkers); j++) {
-      mapImpl(d, j % nJob == 0 ? s : d, nJob, workerList[j], nWorkers);
-    }
-    /*
-   void my_recurrence(size_t v, size_t h, const float a[v][h], float b[v][h])
-   ) {
-   for (int i=1; i<v; ++i)
-    for (int j=1; j<h; ++j)
-     b[i][j] = f(b[i−1][j], b[i][j−1], a[i][j]);
+   */
+}
 
-     */
-
-    mapImpl(dest, src, nJob, worker, omp_get_max_threads());
-  }
