@@ -543,3 +543,78 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 
   free(tree);
 }
+
+// Standalone map for tests
+void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
+  /*
+   * Based on McCool book - Structured Parallel Programming - Chapter 7.5.
+  */
+
+  int nThreads = omp_get_max_threads();
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  // Calculate height and width
+  size_t height = nJob / 2;
+  size_t width = nJob / 2 + nJob % 2;
+
+  // Create computation matrix
+  TYPE *compMatrix = calloc(height * width, sizeJob);
+
+  for (size_t w = 0; w < width; w++) {
+    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    shared(worker, nJob, d, s, sizeJob, width, height)
+
+    #pragma omp single
+    for (size_t h = height; h < width; h++) {
+      // Deal with edge-cases in beggining
+      if (h == 0) {
+        #pragma omp task
+
+        continue;
+      }
+
+      if (w == 0) {
+        #pragma omp task
+
+        continue;
+
+      }
+
+      // Deal with edge-cases in end
+      if (h == 0) {
+        #pragma omp task
+        continue;
+
+      }
+
+      if (w == 0) {
+        #pragma omp task
+        continue;
+
+      }
+
+    }
+
+    }
+  }
+
+
+  #pragma omp parallel default(none) if(nThreads > 1) \
+  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
+  for (size_t i = 0; i < nJob - nWorkers; i++) {
+    for (size_t j = 0; j <= min(j, nWorkers); j++) {
+      mapImpl(d, j % nJob == 0 ? s : d, nJob, workerList[j], nWorkers);
+    }
+    /*
+   void my_recurrence(size_t v, size_t h, const float a[v][h], float b[v][h])
+   ) {
+   for (int i=1; i<v; ++i)
+    for (int j=1; j<h; ++j)
+     b[i][j] = f(b[i−1][j], b[i][j−1], a[i][j]);
+
+     */
+
+    mapImpl(dest, src, nJob, worker, omp_get_max_threads());
+  }
