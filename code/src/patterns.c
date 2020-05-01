@@ -78,25 +78,6 @@ struct treeNode {
 } treeNode;
 
 /*
- * TEMP TEST
-*/
-void printTree(struct treeNode *tree, size_t nJob) {
-  int h = 1;
-  for (size_t i = 0; i < nJob; i++) {
-    int currentHeight = (int) log2(i + 1) + 1;
-
-    if (currentHeight != h) {
-      printf("\n");
-      h++;
-    }
-
-    printf("(%.0lf, %.0lf) ", tree[i].sum, tree[i].fromLeft);
-  }
-
-  printf("\n\n");
-}
-
-/*
  *  Parallel Patterns
 */
 
@@ -108,7 +89,7 @@ void mapImpl(void *dest, void *src, size_t nJob, void (*worker)(void *v1, const 
   TYPE *d = dest;
   TYPE *s = src;
 
-  #pragma omp parallel default(none) if(nThreads > 1) \
+  #pragma omp parallel default(none) \
   shared(worker, nJob, d, s) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++)
@@ -155,7 +136,7 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
   // Set first position as the first value of the src array
   TYPE *phase1reduction = calloc(nTiles, sizeJob);
 
-  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
+  #pragma omp parallel default(none) num_threads(nTiles) \
     shared(leftOverJobs, phase1reduction, worker, tileSize, nTiles, result, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
@@ -222,7 +203,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 
   // Start phase 1 for each tile with one tile per processor
   // If there are less jobs than processors, only start the necessary tiles
-  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
+  #pragma omp parallel default(none) num_threads(nTiles) \
     shared(leftOverJobs, worker, tileSize, phase1reduction, nTiles, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles - 1; tile++) {
@@ -244,7 +225,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   free(phase1reduction);
 
   // Do final phase
-  #pragma omp parallel default(none) num_threads(nTiles) if(nTiles > 1) \
+  #pragma omp parallel default(none) num_threads(nTiles) \
     shared(leftOverJobs, worker, tileSize, phase2reduction, nTiles, d, s, sizeJob)
   #pragma omp for schedule(static)
   for (int tile = 0; tile < nTiles; tile++) {
@@ -301,7 +282,7 @@ void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *f
   TYPE *d = dest;
   TYPE *s = src;
 
-  #pragma omp parallel default(none) if(nThreads > 1) \
+  #pragma omp parallel default(none) \
   shared(filter, nFilter, d, s, sizeJob, nJob, stderr) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (int i = 0; i < nFilter; i++) {
@@ -387,7 +368,7 @@ void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void 
 
   int nThreads = omp_get_max_threads();
 
-  #pragma omp parallel default(none) if(nThreads > 1) \
+  #pragma omp parallel default(none) \
   shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
@@ -417,7 +398,7 @@ void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void
 
   int nThreads = omp_get_max_threads();
 
-  #pragma omp parallel default(none) if(nThreads > 1) \
+  #pragma omp parallel default(none) \
   shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
   for (size_t i = 0; i < nJob - nWorkers; i++) {
     #pragma omp single
@@ -429,7 +410,6 @@ void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void
 }
 
 void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-  /* To be implemented */
   (void) nWorkers; // TODO delete
 
   map(dest, src, nJob, sizeJob, worker);  // it provides the right result, but is a very very vey bad implementation…
@@ -447,7 +427,7 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
 
   int nThreads = omp_get_max_threads();
 
-  #pragma omp parallel default(none) if(nThreads > 1) \
+  #pragma omp parallel default(none) \
   shared(worker, nJob, d, s, nShift, sizeJob) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
@@ -502,7 +482,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
                       ? nTreeElems - 1
                       : pow(2, level) - 2;
 
-    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    #pragma omp parallel default(none) num_threads(nThreads) \
     shared(worker, nJob, s, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node <= lastNode; node++) {
@@ -531,7 +511,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
                       ? nTreeElems - 1
                       : pow(2, level) - 2;
 
-    #pragma omp parallel default(none) if(nThreads > 1) num_threads(nThreads) \
+    #pragma omp parallel default(none)  num_threads(nThreads) \
     shared(worker, nJob, d, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node <= lastNode; node++) {

@@ -17,7 +17,7 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
       args->test_id = getInt(state, arg, "test id");
 
       if (args->test_id < 1 || args->test_id > nTestFunction)
-        argp_failure(state, 1, 0, "invalid test id. pick from 1 to %d", nTestFunction);
+        argp_failure(state, 1, 0, "invalid test id. pick from 1 to %d.", nTestFunction);
       break;
     case 'i':
       args->iterations = getInt(state, arg, "number of iterations");
@@ -34,13 +34,19 @@ int argp_option_parser(int key, char *arg, struct argp_state *state) {
       args->iterations = 0;
       args->weighted = 0;
       args->num_threads = 1;
+
+      if (state->argc == 1)
+        argp_failure(state, 1, 0, "no arguments received.");
       break;
     case ARGP_KEY_END:
-      if (args->iterations < 0)
-        argp_failure(state, 1, 0, "invalid number of iterations");
+      if (args->iterations <= 0)
+        argp_failure(state, 1, 0, "invalid number of iterations.");
+
+      if (args->test_id <= 0)
+        argp_failure(state, 1, 0, "invalid test id..");
 
       if (args->num_threads < 1)
-        argp_failure(state, 1, 0, "invalid number of threads");
+        argp_failure(state, 1, 0, "invalid number of threads.");
       break;
     default:
       return ARGP_ERR_UNKNOWN;
