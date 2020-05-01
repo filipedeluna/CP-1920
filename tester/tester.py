@@ -7,8 +7,10 @@ import matplotlib
 import matplotlib.pyplot as pyplot
 
 # Constants
+HYPERPLANE_ID = 15
+
 TESTS = 14
-ITERATIONS = [10, 50, 100, 500, 1000, 5000, 10000, 50000]
+ITERATIONS = [100, 1000, 10000, 50000, 100000, 500000]
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
 REPETITIONS = 5
 
@@ -38,27 +40,32 @@ if testID < 1 or testID > TESTS + 1:
     print(f"Invalid test number. Please choose from 1 - {TESTS + 1}")
     sys.exit(-1)
 
+# Set lighter iterations for expensive memory tests
+if testID == HYPERPLANE_ID:
+    ITERATIONS = [100, 1000, 10000, 50000, 100000, 500000]
+
 results = []
 totalTests = len(ITERATIONS) * len(THREADS)
 testName = ""
 
-for t in range(0, len(THREADS)):
-    threadResults = []
-    for i in range(0, len(ITERATIONS)):
-        itResults = []
+for i in range(0, len(ITERATIONS)):
+    itResults = []
+    for t in range(0, len(THREADS)):
+        threadResults = []
         for r in range(0, REPETITIONS):
-            stream = os.popen(f"{PROGRAM} -i {ITERATIONS[i]} -k {testID} -t {THREADS[t]}")
+            stream = os.popen(f"{PROGRAM} -i {ITERATIONS[i]} -w -k {testID} -t {THREADS[t]}")
             output = stream.read().split("Done!\n\n")
             time = output[1].split(":\t")[1].split(" micro")[0]
 
-            itResults.append(int(time))
+            threadResults.append(int(time))
             testName = output[1].split(":\t")[0]
 
-            currTest = i * (len(ITERATIONS) + 1) + t + 1
-            print(f"Finished test {currTest}/{totalTests}")
+        currTest = t * (len(ITERATIONS)) + i + 1
+        print(f"Finished test {currTest}/{totalTests}")
 
-        threadResults.append(numpy.mean(itResults))
-    results.append(threadResults)
+        itResults.append(numpy.mean(threadResults))
+
+    results.append(itResults)
 
 print(results)
 
@@ -66,12 +73,17 @@ print(results)
 fig = pyplot.figure()
 ax = fig.add_subplot(111)
 
-for t in range(0, len(THREADS)):
-    ax.plot(results[t], label=f"{THREADS[t]} Threads")
+for i in range(0, len(ITERATIONS)):
+    ax.plot(THREADS, results[i], label=f"{ITERATIONS[i]} Iterations")
 
-ax.set(xlabel='Time (microseconds)', ylabel='N. of Threads',
+ax.set_xscale("log", basex=2)
+ax.set_xticks(THREADS)
+ax.set_xticklabels(THREADS)
+ax.set_yscale("log")
+
+ax.set(xlabel='Number of Threads', ylabel='Time (microseconds)',
        title=f"{testName}")
 ax.grid()
 
-pyplot.legend(loc=1)
+ax.legend(loc='upper right', fancybox=True, shadow=True, prop={'size': 6})
 fig.savefig(f"{testName}.png")
