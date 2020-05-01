@@ -203,6 +203,28 @@ void testScatter(void *src, size_t n, size_t size) {
   free(dest);
 }
 
+void testPriorityScatter(void *src, size_t n, size_t size) {
+  int nDest = 6;
+
+  TYPE *dest = malloc(nDest * size);
+
+  memset(dest, 0, nDest * size);
+
+  int *filter = calloc(n, sizeof(*filter));
+
+  for (int i = 0; i < (int) n; i++)
+    filter[i] = rand() % nDest;
+
+  printInt(filter, n, "filter");
+
+  priorityScatter(dest, src, n, size, filter);
+
+  printTYPE(dest, nDest, __func__);
+
+  free(filter);
+  free(dest);
+}
+
 void testMapPipeline(void *src, size_t n, size_t size) {
   void (*pipelineFunction[])(void *, const void *) = {
       workerMultTwo,
@@ -317,6 +339,7 @@ TESTFUNCTION testFunction[] = {
     testPack,
     testGather,
     testScatter,
+    testPriorityScatter,
     testItemBoundPipeline,
     testMapPipeline,
     testSequentialPipeline,
@@ -334,6 +357,7 @@ char *testNames[] = {
     "testPack",
     "testGather",
     "testScatter",
+    "testPriorityScatter",
     "testItemBoundPipeline",
     "testMapPipeline",
     "testSequentialPipeline",

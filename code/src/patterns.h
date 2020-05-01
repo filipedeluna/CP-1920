@@ -58,6 +58,14 @@ void scatter(
     const int *filter     // Filter for scatter
 );
 
+void priorityScatter(
+    void *dest,           // Target array
+    void *src,            // Source array
+    size_t nJob,          // # elements in the source array
+    size_t sizeJob,       // Size of each element in the source array
+    const int *filter     // Filter for scatter
+);
+
 void itemBoundPipeline(
     void *dest,           // Target array
     void *src,            // Source array
