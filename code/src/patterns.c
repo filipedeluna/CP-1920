@@ -40,8 +40,7 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
 
 static void workerAddForPack(void *a, const void *b, const void *c) {
   // a = b + c
-  (void) c;
-  *(int *) a = *(int *) b + 1;
+  *(int *) a = *(int *) b + *(int *) c;
 }
 
 void basicAsserts(void *dest, void *src, void (*worker)(void *v1, const void *v2)) {
@@ -264,13 +263,7 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   TYPE *s = src;
 
   int *bitSumArray = calloc(nJob, sizeof(int));
-  exclusiveScan(bitSumArray, (void *) filter, nJob, sizeof(int), workerAddForPack);
-
-  printf("\nBitSumArray:");
-  for (size_t j = 0; j < nJob; j++) {
-    printf("%d ", bitSumArray[j]);
-  }
-  printf("\n");
+  scan((int *) bitSumArray + 1, (void *) filter, nJob - 1, sizeof(int), workerAddForPack);
 
   int packLength = bitSumArray[nJob - 1] + 1;
 

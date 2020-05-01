@@ -145,6 +145,7 @@ void testExclusiveScan(void *src, size_t n, size_t size) {
 
 void testPack(void *src, size_t n, size_t size) {
   int *filter = calloc(n, sizeof(*filter));
+
   int count = 0;
   for (int i = 0; i < (int) n; i++){
     filter[i] = i % 2;
