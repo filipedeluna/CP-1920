@@ -123,9 +123,8 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
   if (nJob == 0)
     return;
 
-  TYPE *result = calloc(1, sizeJob);
-
-  TYPE *s = src;
+  char *result = calloc(1, sizeJob);
+  char *s = src;
 
   // Set size of tiles in relation to number of threads
   // set how many left over jobs, making a few threads work an extra job
@@ -135,7 +134,7 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
 
   // Allocate space to hold the reduction of phase 1
   // Set first position as the first value of the src array
-  TYPE *phase1reduction = calloc(nTiles, sizeJob);
+  char *phase1reduction = calloc(nTiles, sizeJob);
 
   #pragma omp parallel default(none) num_threads(nTiles) \
     shared(leftOverJobs, phase1reduction, worker, tileSize, nTiles, result, s, sizeJob)
@@ -149,12 +148,12 @@ reduceImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(vo
     size_t tileIndex = getTileIndex(tile, leftOverJobs, tileSize);
 
     for (size_t i = 0; i < tileSizeWithOffset; i++)
-      worker(&phase1reduction[tile], &phase1reduction[tile], &s[i + tileIndex]);
+      worker(&phase1reduction[tile * sizeJob], &s[(i + tileIndex) * sizeJob], &phase1reduction[tile * sizeJob]);
   }
 
   // Do phase 2 reduction
   for (int tile = 0; tile < nTiles; tile++)
-    worker(result, result, &phase1reduction[tile]);
+    worker(result, result, &phase1reduction[tile * sizeJob]);
 
   memcpy(dest, result, sizeJob);
 
