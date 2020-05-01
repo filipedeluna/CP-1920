@@ -1,7 +1,9 @@
 import os
 import sys
 import array
+
 import numpy
+from numpy import mean
 
 # Constants
 TESTS = 14
@@ -16,8 +18,7 @@ testID = ""
 nThreads = 0
 nIterations = 0
 
-results = []
-
+# Handle args
 if len(sys.argv) == 1:
     print("Expected test number")
     sys.exit(-1)
@@ -33,20 +34,33 @@ if not sys.argv[1].isdecimal():
 
 testID = int(sys.argv[1])
 
-
 if testID < 1 or testID > TESTS + 1:
     print(f"Invalid test number. Please choose from 1 - {TESTS + 1}")
     sys.exit(-1)
 
+results = []
+totalTests = len(ITERATIONS) * len(THREADS)
+
 for i in range(0, len(ITERATIONS)):
+    iterationResults = []
     for t in range(0, len(THREADS)):
+        repetitionResults = []
         for r in range(0, REPETITIONS):
-            stream = os.popen(f"{PROGRAM} -i {ITERATIONS[i]} -k {test} -t {THREADS[t]}")
+            stream = os.popen(f"{PROGRAM} -i {ITERATIONS[i]} -k {testID} -t {THREADS[t]}")
             output = stream.read().split("Done!\n\n")
+            time = output[1].split(":\t")[1].split(" micro")[0]
 
-            repResults = []
-            repResults.append(output[1].split(":\t")[1].split(" micro")[0])
-            print(repResults)
-
+            repetitionResults.append(int(time))
             testName = output[1].split(":\t")[0]
+
+            iterationResults.append(mean(repetitionResults))
+
+        currTest = i * (len(ITERATIONS) + 1) + t + 1
+        print(f"Finished test {currTest}/{totalTests}")
+
+    results.append(iterationResults)
+
+print(results)
+
+
 
