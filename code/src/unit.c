@@ -144,13 +144,14 @@ void testExclusiveScan(void *src, size_t n, size_t size) {
 }
 
 void testPack(void *src, size_t n, size_t size) {
-  int nFilter = 3;
+  //int nFilter = 3;
 
-  TYPE *dest = malloc(nFilter * size);
+  //TYPE *dest = malloc(nFilter * size);
+  TYPE *dest = malloc(n * size);
   int *filter = calloc(n, sizeof(*filter));
 
   for (int i = 0; i < (int) n; i++)
-    filter[i] = (i == 0 || i == (int) n / 2 || i == (int) n - 1);
+    filter[i] = rand() % 2;
 
   int newN = pack(dest, src, n, size, filter);
 
