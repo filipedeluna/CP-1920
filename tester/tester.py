@@ -1,4 +1,5 @@
 import os
+import sys
 import array
 import numpy
 
@@ -17,18 +18,35 @@ nIterations = 0
 
 results = []
 
-for test in range(1, TESTS + 1):
-    for i in range(0, len(ITERATIONS)):
-        for t in range(0, len(THREADS)):
-            for r in range(0, REPETITIONS):
-                stream = os.popen(f"{PROGRAM} -i {ITERATIONS[i]} -k {test} -t {THREADS[t]}")
-                output = stream.read().split("Done!\n\n")
+if len(sys.argv) == 1:
+    print("Expected test number")
+    sys.exit(-1)
 
-                repResults = []
-                repResults.append(output[1].split(":\t")[1].split(" micro")[0])
-                print(repResults)
+if len(sys.argv) > 2:
+    print("Too many arguments - expected test number")
+    sys.exit(-1)
 
-                testName = output[1].split(":\t")[0]
 
-    results[test][i] = 0
-    print(testName + " - " + 0)
+if not sys.argv[1].isdecimal():
+    print("Expected test number - must be integer")
+    sys.exit(-1)
+
+testID = int(sys.argv[1])
+
+
+if testID < 1 or testID > TESTS + 1:
+    print(f"Invalid test number. Please choose from 1 - {TESTS + 1}")
+    sys.exit(-1)
+
+for i in range(0, len(ITERATIONS)):
+    for t in range(0, len(THREADS)):
+        for r in range(0, REPETITIONS):
+            stream = os.popen(f"{PROGRAM} -i {ITERATIONS[i]} -k {test} -t {THREADS[t]}")
+            output = stream.read().split("Done!\n\n")
+
+            repResults = []
+            repResults.append(output[1].split(":\t")[1].split(" micro")[0])
+            print(repResults)
+
+            testName = output[1].split(":\t")[0]
+
