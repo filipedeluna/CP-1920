@@ -6,6 +6,7 @@
 #include <omp.h>
 #include "patterns.h"
 #include "args.h"
+#include <stdio.h>
 
 /*
  *  UTILS
@@ -39,7 +40,7 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
 
 static void workerAddForPack(void *a, const void *b, const void *c) {
   // a = b + c
-  *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
+  *(int *) a = *(int *) b + *(int *) c;
 }
 
 void basicAsserts(void *dest, void *src, void (*worker)(void *v1, const void *v2)) {
@@ -261,17 +262,21 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   TYPE *s = src;
 
   int *bitSumArray = calloc(nJob, sizeof(int));
-  exclusiveScan(bitSumArray, (void *) filter, nJob, sizeof(int), workerAddForPack);
+  scan((int *) bitSumArray + 1, (void *) filter, nJob - 1, sizeof(int), workerAddForPack);
+
+  int packLength = bitSumArray[nJob - 1] + 1;
 
   #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
   #pragma omp for schedule(static)
-  for (int i = 0; i < (int) nJob; i++) {
+  for (size_t i = 0; i < nJob; i++) {
     if (filter[i]) {
       memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
     }
   }
 
-  return bitSumArray[nJob] + 1;
+  free(bitSumArray);
+
+  return packLength;
 }
 
 void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter, int nFilter, int nThreads) {
