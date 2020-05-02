@@ -411,15 +411,20 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
   for (size_t i = 0; i < nCycles; i++) {
     // Calculate first job on pile for cycle
-    size_t firstJob = (i / nThreads) * nThreads;
+    size_t firstJob = (i / nWorkers) * nThreads;
 
     #pragma omp single
     for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
+      // Calculate current job number in relation to nJob
       size_t currJob = firstJob + (i - firstJob) - j;
 
-      if (currJob + nWorkers - 1 < nJob)
-        #pragma omp task default(none) shared(nJob, nWorkers, workerList, j, i, s, d, currJob)
-        workerList[j](&d[currJob], j == 0 ? &s[currJob] : &d[currJob]);
+      #pragma omp task default(none) shared(nJob, nWorkers, workerList, j, s, d, i, currJob, firstJob)
+      if (currJob < nJob) {
+        // Check if first nJob work (needs to fetch value from source)
+        int isFirstTime = (firstJob - currJob) % nWorkers == 0;
+
+        workerList[j](&d[currJob], isFirstTime && i - 1 + nWorkers < nJob ? &s[currJob] : &d[currJob]);
+      }
     }
   }
 }
