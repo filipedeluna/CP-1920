@@ -386,7 +386,7 @@ void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void 
   }
 }
 
-void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
 
   /*
@@ -400,15 +400,22 @@ void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void
   if (nWorkers == 0)
     return;
 
-  int nThreads = omp_get_max_threads();
+  int nThreads = min(nJob, omp_get_max_threads());
+
+  // Calculate number of necessary loop cycles
+  size_t nCycles = nWorkers * (nJob / nThreads + 1);
+  if (nJob % nThreads)
+    nCycles += nWorkers - (nJob % nThreads);
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
-  for (size_t i = 0; i < nJob - nWorkers; i++) {
-    #pragma omp single
-    for (size_t j = 0; j <= min(j, nWorkers); j++) {
+  shared(workerList, nJob, nWorkers, d, s, nCycles) num_threads(nThreads)
+  for (size_t i = 0; i < nCycles; i++) {
+    #pragma omp single // default(none) shared(nJob, nWorkers, workerList, j, i, s, d)
+    for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
+      size_t currJob = (nWorkers / i) + j;
+
       #pragma omp task
-      mapImpl(d, j % nJob == 0 ? s : d, nJob, workerList[j], nWorkers);
+      mapImpl((TYPE *) &d[currJob], j % nJob == 0 ? s : d, nJob, workerList[i % j], nWorkers);
     }
   }
 }

@@ -84,7 +84,7 @@ void mapPipeline(
     size_t nWorkers       // # stages in the pipeline
 );
 
-void sequentialPipeline(
+void serialPipeline(
     void *dest,           // Target array
     void *src,            // Source array
     size_t nJob,          // # elements in the source array
