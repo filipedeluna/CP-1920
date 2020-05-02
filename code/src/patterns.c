@@ -408,14 +408,18 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     nCycles += nWorkers - (nJob % nThreads);
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, d, s, nCycles) num_threads(nThreads)
+  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
   for (size_t i = 0; i < nCycles; i++) {
-    #pragma omp single // default(none) shared(nJob, nWorkers, workerList, j, i, s, d)
-    for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
-      size_t currJob = (nWorkers / i) + j;
+    // Calculate first job on pile for cycle
+    size_t firstJob = (i / nThreads) * nThreads;
 
-      #pragma omp task
-      mapImpl((TYPE *) &d[currJob], j % nJob == 0 ? s : d, nJob, workerList[i % j], nWorkers);
+    #pragma omp single
+    for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
+      size_t currJob = firstJob + (i - firstJob) - j;
+
+      if (currJob + nWorkers - 1 < nJob)
+        #pragma omp task default(none) shared(nJob, nWorkers, workerList, j, i, s, d, currJob)
+        workerList[j](&d[currJob], j == 0 ? &s[currJob] : &d[currJob]);
     }
   }
 }
