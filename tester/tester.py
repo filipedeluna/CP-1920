@@ -1,6 +1,7 @@
 import os
 import sys
 import array
+import time as TIME
 
 import numpy
 import matplotlib
@@ -10,7 +11,7 @@ import matplotlib.pyplot as pyplot
 HYPERPLANE_ID = 15
 
 TESTS = 14
-ITERATIONS = [100, 1000, 10000, 50000, 100000, 500000]
+ITERATIONS = [100, 1000, 10000, 50000, 100000]
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
 REPETITIONS = 5
 
@@ -42,11 +43,13 @@ if testID < 1 or testID > TESTS + 1:
 
 # Set lighter iterations for expensive memory tests
 if testID == HYPERPLANE_ID:
-    ITERATIONS = [100, 1000, 10000, 50000, 100000, 500000]
+    ITERATIONS = [50, 100, 500, 1000, 5000]
 
 results = []
 totalTests = len(ITERATIONS) * len(THREADS)
 testName = ""
+
+start_time = TIME.time()
 
 for i in range(0, len(ITERATIONS)):
     itResults = []
@@ -60,7 +63,7 @@ for i in range(0, len(ITERATIONS)):
             threadResults.append(int(time))
             testName = output[1].split(":\t")[0]
 
-        currTest = t * (len(ITERATIONS)) + i + 1
+        currTest = i * (len(THREADS)) + t + 1
         print(f"Finished test {currTest}/{totalTests}")
 
         itResults.append(numpy.mean(threadResults))
@@ -82,8 +85,11 @@ ax.set_xticklabels(THREADS)
 ax.set_yscale("log")
 
 ax.set(xlabel='Number of Threads', ylabel='Time (microseconds)',
-       title=f"{testName}")
+       title=f"{testName[4:]} Algorithm Test")
 ax.grid()
 
 ax.legend(loc='upper right', fancybox=True, shadow=True, prop={'size': 6})
-fig.savefig(f"{testName}.png")
+fig.savefig(f"{testName[4:]} test.png")
+
+totalTime = TIME.time() - start_time
+print(f"Tests completed successfully in {round(totalTime)} seconds.")
