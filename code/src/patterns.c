@@ -414,9 +414,24 @@ void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void
 }
 
 void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-  (void) nWorkers; // TODO delete
+  //(void) nWorkers;
+  //map(dest, src, nJob, sizeJob, worker);  // it provides the right result, but is a very very vey bad implementation…
 
-  map(dest, src, nJob, sizeJob, worker);  // it provides the right result, but is a very very vey bad implementation…
+  basicAsserts(dest, src, worker);
+  assert (nWorkers >= 1);
+
+  TYPE *d = dest;
+  TYPE *s = src;
+
+  #pragma omp parallel default(none) shared(d, s, nJob, sizeJob, worker)
+  {
+    #pragma omp single
+      for(size_t i = 0; i < nJob; i++) {
+        #pragma omp task
+          worker(&d[i], &s[i]);
+      }
+  }
+
 }
 
 void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), int nShift) {
