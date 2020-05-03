@@ -401,49 +401,42 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   if (nWorkers == 0)
     return;
 
-  int nThreads = min(nJob, omp_get_max_threads());
+  size_t nThreads = min(nJob, omp_get_max_threads());
 
   // Calculate number of necessary loop cycles
-  long nCycles = (int) nWorkers * ((long) nJob / nThreads + 1);
+  size_t nCycles = nWorkers * (nJob / nThreads + 1);
   if (nJob % nThreads)
-    nCycles += (int) nWorkers - ((long) nJob % nThreads);
+    nCycles += nWorkers - (nJob % nThreads);
+
+  // Keep track of current last job on pile
+  size_t lastJob = 0;
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
-  for (long i = 0; i < nCycles; i++) {
-    // Keep track of current job
-    long currentJob = 0;
-
+  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles, currentJob) num_threads(nThreads)
+  for (size_t i = 0; i < nCycles; i++) {
     // Keep track of worker operation in a variable
-    int workerCounter = (int) (i % nWorkers);
+    size_t workerCounter = i % nWorkers;
 
     #pragma omp single
-    for (long j = 0; j < (int) min(i + 1, nThreads) && currentJob + j < (long) nJob; j++) {
+    for (size_t j = 0; j < min(i + 1, nThreads); j++) {
       #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, workerCounter, currentJob)
-      workerList[workerCounter](&d[currentJob - j], workerCounter == 0 ? &s[currentJob - j] : &d[currentJob - j]);
+      if (currentJob < nJob)
+        workerList[workerCounter](&d[currentJob - j], workerCounter == 0 ? &s[currentJob - j] : &d[currentJob - j]);
 
       // Update operation counter, reset if over limit
       if (workerCounter % nWorkers == 0)
-        workerCounter = (int) nWorkers - 1;
+        workerCounter = nWorkers - 1;
       else
         workerCounter--;
     }
 
     // Update the currentJob at the top of the pile
-    if ((i + 1) < (int) nWorkers) {
-      currentJob++;
-      continue;
-    }
+    currentJob++;
 
-    if ((i + 1) % nCycles == 0) {
-      if (i < (int) nThreads)
-        currentJob += i / (int) nWorkers + i % (int) nWorkers; //TODO
-      else
-        currentJob += nThreads / (int) nWorkers + nThreads % (int) nWorkers;
+    if (i >= nWorkers) {
+      size_t activeJobs = min(i, nThreads - 1) - (i % nWorkers);
+      currentJob += activeJobs / nWorkers;
     }
-
-    if (currentJob >= (long) nJob) //TODO
-      currentJob = (long) nJob - 1;
   }
 }
 
