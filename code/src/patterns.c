@@ -403,28 +403,39 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   int nThreads = min(nJob, omp_get_max_threads());
 
   // Calculate number of necessary loop cycles
-  size_t nCycles = nWorkers * (nJob / nThreads + 1);
+  long nCycles = (int) nWorkers * ((long) nJob / nThreads + 1);
   if (nJob % nThreads)
-    nCycles += nWorkers - (nJob % nThreads);
+    nCycles += (int) nWorkers - ((long) nJob % nThreads);
 
   #pragma omp parallel default(none) \
   shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
-  for (size_t i = 0; i < nCycles; i++) {
-    // Calculate first job on pile for cycle
-    size_t firstJob = (i / nWorkers) * nThreads;
+  for (long i = 0; i < nCycles; i++) {
+    // Keep track of current job
+    long currentJob = 0;
+
+    // Keep track of worker operation in a variable
+    int opCounter = (int) (i % nWorkers);
 
     #pragma omp single
-    for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
-      // Calculate current job number in relation to nJob
-      size_t currJob = firstJob + (i - firstJob) - j;
-
-      #pragma omp task default(none) shared(nJob, nWorkers, workerList, j, s, d, i, currJob, firstJob)
-      if (currJob < nJob) {
-        // Check if first nJob work (needs to fetch value from source)
-        int isFirstTime = (firstJob - currJob) % nWorkers == 0;
-
-        workerList[j](&d[currJob], isFirstTime && i - 1 + nWorkers < nJob ? &s[currJob] : &d[currJob]);
+    for (long j = 0; j < (int) min(i + 1, nThreads); j++) {
+      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, opCounter, currentJob)
+      if (currentJob < (long) nJob) {
+        // Calculate current worker that is supposed to be used
+        workerList[opCounter](&d[currentJob - j], opCounter == 0 ? &s[currentJob - j] : &d[currentJob - j]);
       }
+
+      if (opCounter % nWorkers == 0)
+        opCounter = (int) nWorkers - 1;
+      else
+        opCounter--;
+
+      if (currentJob < (long) nJob)
+        break;
+
+      if (i > nThreads)
+        currentJob += nThreads / (int) nWorkers + nThreads % (int) nWorkers;
+      else
+        currentJob += i / (int) nWorkers + i % (int) nWorkers;
     }
   }
 }
