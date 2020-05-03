@@ -404,7 +404,7 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 
   // The number of workers has to be equal or less than the number of threads
   size_t nThreads = omp_get_max_threads();
-  assert(nWorkers <= nThreads);
+  // assert(nWorkers <= nThreads);
 
   // Calculate number of necessary loop cycles
   size_t nCycles = nWorkers + nJob - 1;
@@ -418,7 +418,7 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       size_t currOp = nWorkers - (nWorkers - j);
 
       #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp)
-      if (i - j < nJob - 1)
+      if (currJob < nJob - 1)
         workerList[currOp](&d[currJob], currOp == 0 ? &s[currJob] : &d[currJob]);
     }
   }

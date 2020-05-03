@@ -10,7 +10,10 @@ import numpy
 NUM_ALGORITHMS = 15
 ITERATIONS_HEAVY = [100, 1000, 10000, 50000, 100000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
-HEAVY_ALGS = [15]
+HEAVY_ALGS = [
+    11, # Serial Pipeline
+    15  # Hyperplane
+]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
 REPETITIONS = 5
