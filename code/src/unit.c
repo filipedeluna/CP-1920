@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <omp.h>
 #include "patterns.h"
 
 #include "debug.h"
@@ -147,7 +148,7 @@ void testPack(void *src, size_t n, size_t size) {
   int *filter = calloc(n, sizeof(*filter));
 
   int count = 0;
-  for (int i = 0; i < (int) n; i++){
+  for (int i = 0; i < (int) n; i++) {
     filter[i] = i % 2;
     count += i % 2;
   }
@@ -264,17 +265,16 @@ void testItemBoundPipeline(void *src, size_t n, size_t size) {
 }
 
 void testSerialPipeline(void *src, size_t n, size_t size) {
-  void (*pipelineFunction[])(void *, const void *) = {
-      workerMultTwo,
-      workerAddOne,
-      workerDivTwo
-  };
+  size_t nThreads = omp_get_max_threads();
 
-  int nPipelineFunctions = sizeof(pipelineFunction) / sizeof(pipelineFunction[0]);
+  void (**pipelineFunction)(void *, const void *) = calloc(nThreads, sizeof(pipelineFunction[0]));
+
+  for (size_t i = 0; i < nThreads; i++)
+    pipelineFunction[i] = workerAddOne;
 
   TYPE *dest = malloc(n * size);
 
-  serialPipeline(dest, src, n, size, pipelineFunction, nPipelineFunctions);
+  serialPipeline(dest, src, n, size, pipelineFunction, nThreads);
 
   printTYPE(dest, n, __func__);
 

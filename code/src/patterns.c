@@ -391,51 +391,35 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 
   /*
    * In this version, the data is processed sequentially.
+   * This algorithm needs an equal number of threads and workers to work
    * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
   */
 
   TYPE *d = dest;
   TYPE *s = src;
 
-  // If no workers, return and leave
+  // No workers means no jobs
   if (nWorkers == 0)
     return;
 
-  size_t nThreads = min(nJob, omp_get_max_threads());
+  // The number of workers has to be equal or less than the number of threads
+  size_t nThreads = omp_get_max_threads();
+  assert(nWorkers <= nThreads);
 
   // Calculate number of necessary loop cycles
-  size_t nCycles = nWorkers * (nJob / nThreads + 1);
-  if (nJob % nThreads)
-    nCycles += nWorkers - (nJob % nThreads);
-
-  // Keep track of current last job on pile
-  size_t lastJob = 0;
+  size_t nCycles = nWorkers + nJob - 1;
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles, currentJob) num_threads(nThreads)
+  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
   for (size_t i = 0; i < nCycles; i++) {
-    // Keep track of worker operation in a variable
-    size_t workerCounter = i % nWorkers;
-
     #pragma omp single
-    for (size_t j = 0; j < min(i + 1, nThreads); j++) {
-      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, workerCounter, currentJob)
-      if (currentJob < nJob)
-        workerList[workerCounter](&d[currentJob - j], workerCounter == 0 ? &s[currentJob - j] : &d[currentJob - j]);
+    for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
+      size_t currJob = i - j;
+      size_t currOp = nWorkers - (nWorkers - j);
 
-      // Update operation counter, reset if over limit
-      if (workerCounter % nWorkers == 0)
-        workerCounter = nWorkers - 1;
-      else
-        workerCounter--;
-    }
-
-    // Update the currentJob at the top of the pile
-    currentJob++;
-
-    if (i >= nWorkers) {
-      size_t activeJobs = min(i, nThreads - 1) - (i % nWorkers);
-      currentJob += activeJobs / nWorkers;
+      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp)
+      if (i - j < nJob - 1)
+        workerList[currOp](&d[currJob], currOp == 0 ? &s[currJob] : &d[currJob]);
     }
   }
 }
