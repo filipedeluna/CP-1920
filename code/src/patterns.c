@@ -414,11 +414,10 @@ void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void
 }
 
 void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-  //(void) nWorkers;
-  //map(dest, src, nJob, sizeJob, worker);  // it provides the right result, but is a very very vey bad implementation…
 
   basicAsserts(dest, src, worker);
   assert (nWorkers >= 1);
+  assert (sizeJob > 0);
 
   TYPE *d = dest;
   TYPE *s = src;
