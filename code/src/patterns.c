@@ -253,16 +253,15 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   char *s = src;
 
   int *bitSumArray = calloc(nJob, sizeof(int));
-  scan((int *) bitSumArray + 1, (void *) filter, nJob - 1, sizeof(int), workerAddForPack);
+  scan(&bitSumArray[1], (void *) filter, nJob - 1, sizeof(bitSumArray[0]), workerAddForPack);
 
   int packLength = bitSumArray[nJob - 1] + 1;
 
   #pragma omp parallel default(none) shared(nJob, d, s, filter, bitSumArray, sizeJob)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
-    if (filter[i]) {
-      memcpy(&d[bitSumArray[i * sizeJob]], &s[i * sizeJob], sizeJob);
-    }
+    if (filter[i])
+      memcpy(&d[bitSumArray[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
 
   free(bitSumArray);
@@ -284,7 +283,7 @@ void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *f
     // This assertion fails due to a bug - error: ‘__PRETTY_FUNCTION__’ not specified in enclosing ‘parallel’
     // assert (filter[i] < (int) nJob);
     // I replaced it with a closely equivalent solution
-    if (filter[i] >= (int) nJob) {
+    if ((size_t) filter[i] >= nJob) {
       fprintf(stderr, "Invalid filter index in Gather");
       exit(1);
     }
@@ -303,9 +302,15 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   char *d = dest;
   char *s = src;
 
-  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
+  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr)
   #pragma omp for schedule(static)
-  for (int i = 0; i < (int) nJob; i++) {
+  for (size_t i = 0; i < nJob; i++) {
+    // Alternative to assert
+    if ((size_t) filter[i] >= nJob) {
+      fprintf(stderr, "Invalid filter index in Scatter");
+      exit(1);
+    }
+
     #pragma omp atomic write
     d[filter[i] * sizeJob] = s[i * sizeJob];
   }
@@ -317,9 +322,15 @@ void priorityScatter(void *dest, void *src, size_t nJob, size_t sizeJob, const i
   char *d = dest;
   char *s = src;
 
-  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
+  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr)
   #pragma omp for schedule(static) ordered //priority is given to the elements with higher index in the filter
-  for (int i = 0; i < (int) nJob; i++) {
+  for (size_t i = 0; i < nJob; i++) {
+    // Alternative to assert
+    if ((size_t) filter[i] >= nJob) {
+      fprintf(stderr, "Invalid filter index in Priority Scatter");
+      exit(1);
+    }
+
     memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
 }
