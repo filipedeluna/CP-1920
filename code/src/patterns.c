@@ -386,29 +386,40 @@ void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void 
   }
 }
 
-void sequentialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
 
   /*
    * In this version, the data is processed sequentially.
+   * This algorithm needs an equal number of threads and workers to work
    * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
   */
 
   TYPE *d = dest;
   TYPE *s = src;
 
+  // No workers means no jobs
   if (nWorkers == 0)
     return;
 
-  int nThreads = omp_get_max_threads();
+  // The number of workers has to be equal or less than the number of threads
+  size_t nThreads = omp_get_max_threads();
+  // assert(nWorkers <= nThreads);
+
+  // Calculate number of necessary loop cycles
+  size_t nCycles = nWorkers + nJob - 1;
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
-  for (size_t i = 0; i < nJob - nWorkers; i++) {
+  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
+  for (size_t i = 0; i < nCycles; i++) {
     #pragma omp single
-    for (size_t j = 0; j <= min(j, nWorkers); j++) {
-      #pragma omp task
-      mapImpl(d, j % nJob == 0 ? s : d, nJob, workerList[j], nWorkers);
+    for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
+      size_t currJob = i - j;
+      size_t currOp = nWorkers - (nWorkers - j);
+
+      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp)
+      if (currJob < nJob - 1)
+        workerList[currOp](&d[currJob], currOp == 0 ? &s[currJob] : &d[currJob]);
     }
   }
 }

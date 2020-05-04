@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <omp.h>
 #include "patterns.h"
 
 #include "debug.h"
@@ -147,7 +148,7 @@ void testPack(void *src, size_t n, size_t size) {
   int *filter = calloc(n, sizeof(*filter));
 
   int count = 0;
-  for (int i = 0; i < (int) n; i++){
+  for (int i = 0; i < (int) n; i++) {
     filter[i] = i % 2;
     count += i % 2;
   }
@@ -263,18 +264,18 @@ void testItemBoundPipeline(void *src, size_t n, size_t size) {
   free(dest);
 }
 
-void testSequentialPipeline(void *src, size_t n, size_t size) {
-  void (*pipelineFunction[])(void *, const void *) = {
-      workerMultTwo,
-      workerAddOne,
-      workerDivTwo
-  };
+void testSerialPipeline(void *src, size_t n, size_t size) {
+  // Force worker to 128 to get improvement results
+  size_t nWorkers = 128;  //omp_get_max_threads();
 
-  int nPipelineFunction = sizeof(pipelineFunction) / sizeof(pipelineFunction[0]);
+  void (**pipelineFunction)(void *, const void *) = calloc(nWorkers, sizeof(pipelineFunction[0]));
+
+  for (size_t i = 0; i < nWorkers; i++)
+    pipelineFunction[i] = workerAddOne;
 
   TYPE *dest = malloc(n * size);
 
-  sequentialPipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
+  serialPipeline(dest, src, n, size, pipelineFunction, nWorkers);
 
   printTYPE(dest, n, __func__);
 
@@ -298,7 +299,7 @@ void testStencil(void *src, size_t n, size_t size) {
   // srand(time(0));
   // int nShift = (rand() % 5) + 1;
 
-  printf("Stencil shift size: %d\n", 5 /* nShift */);
+  // printf("Stencil shift size: %d\n", 5 /* nShift */);
 
   stencil(dest, src, n, size, workerAccum, 5);
 
@@ -344,7 +345,7 @@ TESTFUNCTION testFunction[] = {
     testPriorityScatter,
     testItemBoundPipeline,
     testMapPipeline,
-    testSequentialPipeline,
+    testSerialPipeline,
     testFarm,
     testStencil,
     testParallelPrefix,
@@ -362,7 +363,7 @@ char *testNames[] = {
     "testPriorityScatter",
     "testItemBoundPipeline",
     "testMapPipeline",
-    "testSequentialPipeline",
+    "testSerialPipeline",
     "testFarm",
     "testStencil",
     "testParallelPrefix",
