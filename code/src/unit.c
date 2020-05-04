@@ -127,7 +127,7 @@ void testReduce(void *src, size_t n, size_t size) {
 void testInclusiveScan(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
-  inclusiveScan(dest, src, n, size, workerAdd);
+  scan(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
@@ -239,7 +239,7 @@ void testMapPipeline(void *src, size_t n, size_t size) {
 
   TYPE *dest = malloc(n * size);
 
-  mapPipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
+  pipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
 
   printTYPE(dest, n, __func__);
 
@@ -353,21 +353,21 @@ TESTFUNCTION testFunction[] = {
 };
 
 char *testNames[] = {
-    "testMap",
-    "testReduce",
-    "testInclusiveScan",
-    "testExclusiveScan",
-    "testPack",
-    "testGather",
-    "testScatter",
-    "testPriorityScatter",
-    "testItemBoundPipeline",
-    "testMapPipeline",
-    "testSerialPipeline",
-    "testFarm",
-    "testStencil",
-    "testParallelPrefix",
-    "testHyperplane"
+    "test: Map",
+    "test: Reduce",
+    "test: Inclusive Scan",
+    "test: Exclusive Scan",
+    "test: Pack",
+    "test: Gather",
+    "test: Scatter",
+    "test: Priority Scatter",
+    "test: Item-Bound Pipeline",
+    "test: Map Pipeline",
+    "test: Serial Pipeline",
+    "test: Farm",
+    "test: Stencil",
+    "test: Parallel Prefix",
+    "test: Hyperplane"
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);

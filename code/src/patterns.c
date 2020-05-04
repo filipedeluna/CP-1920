@@ -5,7 +5,6 @@
 #include <math.h>
 #include <omp.h>
 #include "patterns.h"
-#include "args.h"
 #include <stdio.h>
 
 /*
@@ -39,7 +38,6 @@ size_t getTileIndex(int tile, int leftOverTiles, size_t tileSize) {
 }
 
 static void workerAddForPack(void *a, const void *b, const void *c) {
-  // a = b + c
   *(int *) a = *(int *) b + *(int *) c;
 }
 
@@ -74,8 +72,8 @@ void pipelineAsserts(void *dest, void *src, size_t nJob, size_t sizeJob, void (*
 }
 
 struct treeNode {
-    TYPE sum;
-    TYPE fromLeft;
+    char *sum;
+    char *fromLeft;
 } treeNode;
 
 /*
@@ -83,26 +81,23 @@ struct treeNode {
 */
 
 // Implementation of map
-void mapImpl(void *dest, void *src, size_t nJob, void (*worker)(void *v1, const void *v2), int nThreads) {
+void mapImpl(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), int nThreads) {
   basicAsserts(dest, src, worker);
   assert (nThreads >= 1);
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   #pragma omp parallel default(none) \
-  shared(worker, nJob, d, s) num_threads(nThreads)
+  shared(worker, nJob, d, s, sizeJob) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++)
-    worker(&d[i], &s[i]);
+    worker(&d[i * sizeJob], &s[i * sizeJob]);
 }
 
 // Standalone map for tests
 void map(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2)) {
-  // Avoid unused parameter error for useless parameter
-  (void) sizeJob;
-
-  mapImpl(dest, src, nJob, worker, omp_get_max_threads());
+  mapImpl(dest, src, nJob, sizeJob, worker, omp_get_max_threads());
 }
 
 // Implementation of reduce
@@ -173,7 +168,7 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   /*
   * Implementation based on Structured Parallel Programming by Michael McCool et al.
   * The Three-phase tiled implementation of scan can be found on chapter 5.6
-  * This is the inclusive scan
+  * This is an INCLUSIVE scan
   */
 
   char *d = dest;
@@ -244,10 +239,6 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   }
 
   free(phase2reduction);
-}
-
-void inclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  scan(dest, src, nJob, sizeJob, worker);
 }
 
 void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
@@ -336,8 +327,13 @@ void priorityScatter(void *dest, void *src, size_t nJob, size_t sizeJob, const i
   }
 }
 
-void mapPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
+void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
   pipelineAsserts(dest, src, nJob, sizeJob, workerList, nWorkers);
+
+  /*
+  * This pipeline implementation is a succession of maps or "map pipeline"
+  * Its definition can be found in the book
+  */
 
   TYPE *d = dest;
   TYPE *s = src;
@@ -425,7 +421,6 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 }
 
 void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2), size_t nWorkers) {
-
   basicAsserts(dest, src, worker);
   assert (nWorkers >= 1);
   assert (sizeJob > 0);
@@ -436,10 +431,10 @@ void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   #pragma omp parallel default(none) shared(d, s, nJob, sizeJob, worker)
   {
     #pragma omp single
-      for(size_t i = 0; i < nJob; i++) {
-        #pragma omp task
-          worker(&d[i], &s[i]);
-      }
+    for (size_t i = 0; i < nJob; i++) {
+      #pragma omp task
+      worker(&d[i], &s[i]);
+    }
   }
 
 }
