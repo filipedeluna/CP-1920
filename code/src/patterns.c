@@ -242,15 +242,15 @@ void scan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
 }
 
 void exclusiveScan(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(void *v1, const void *v2, const void *v3)) {
-  scan((TYPE *) dest + 1, src, nJob - 1, sizeJob, worker);
+  scan((char *) dest + sizeJob, src, nJob - 1, sizeJob, worker);
 }
 
 
 int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
   filteredAsserts(dest, src, nJob, sizeJob, filter);
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   int *bitSumArray = calloc(nJob, sizeof(int));
   scan((int *) bitSumArray + 1, (void *) filter, nJob - 1, sizeof(int), workerAddForPack);
@@ -261,7 +261,7 @@ int pack(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) 
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
     if (filter[i]) {
-      memcpy(&d[bitSumArray[i]], &s[i], sizeJob);
+      memcpy(&d[bitSumArray[i * sizeJob]], &s[i * sizeJob], sizeJob);
     }
   }
 
@@ -274,8 +274,8 @@ void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *f
   filteredAsserts(dest, src, nJob, sizeJob, filter);
   assert (nFilter >= 0);
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   #pragma omp parallel default(none) \
   shared(filter, nFilter, d, s, sizeJob, nJob, stderr) num_threads(nThreads)
@@ -289,7 +289,7 @@ void gatherImpl(void *dest, void *src, size_t nJob, size_t sizeJob, const int *f
       exit(1);
     }
 
-    memcpy(&d[i], &s[filter[i]], sizeJob);
+    memcpy(&d[i * sizeJob], &s[filter[i] * sizeJob], sizeJob);
   }
 }
 
@@ -300,16 +300,14 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
 void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {//this scatter is atomic
   filteredAsserts(dest, src, nJob, sizeJob, filter);
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
   #pragma omp for schedule(static)
   for (int i = 0; i < (int) nJob; i++) {
-    // assert (filter[i] < (int) nJob);
-    //memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
     #pragma omp atomic write
-    d[filter[i]] = s[i];
+    d[filter[i] * sizeJob] = s[i * sizeJob];
   }
 }
 
@@ -322,7 +320,6 @@ void priorityScatter(void *dest, void *src, size_t nJob, size_t sizeJob, const i
   #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s)
   #pragma omp for schedule(static) ordered //priority is given to the elements with higher index in the filter
   for (int i = 0; i < (int) nJob; i++) {
-    // assert (filter[i] < (int) nJob);
     memcpy(&d[filter[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
 }
@@ -335,8 +332,8 @@ void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerL
   * Its definition can be found in the book
   */
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   if (nWorkers == 0)
     return;
@@ -344,11 +341,11 @@ void pipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerL
   int nThreads = omp_get_max_threads();
 
   // Do first cycle
-  mapImpl(d, s, nJob, workerList[0], nThreads);
+  mapImpl(d, s, nJob, sizeJob, workerList[0], nThreads);
 
   // Following cycles
   for (size_t j = 1; j < nWorkers; j++)
-    mapImpl(d, d, nJob, workerList[j], nThreads);
+    mapImpl(d, d, nJob, sizeJob, workerList[j], nThreads);
 }
 
 void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*workerList[])(void *v1, const void *v2), size_t nWorkers) {
@@ -360,8 +357,8 @@ void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void 
    * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
   */
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   if (nWorkers == 0)
     return;
@@ -369,16 +366,15 @@ void itemBoundPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void 
   int nThreads = omp_get_max_threads();
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, d, s) num_threads(nThreads)
+  shared(workerList, nJob, nWorkers, d, s, sizeJob) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
-
     // Do first worker
-    workerList[0](&d[i], &s[i]);
+    workerList[0](&d[i * sizeJob], &s[i * sizeJob]);
 
     // Do subsequent workers
     for (size_t j = 1; j < nWorkers; j++)
-      workerList[j](&d[i], &d[i]);
+      workerList[j](&d[i * sizeJob], &d[i * sizeJob]);
   }
 }
 
@@ -391,8 +387,8 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
    * https://ipcc.cs.uoregon.edu/lectures/lecture-10-pipeline.pdf
   */
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   // No workers means no jobs
   if (nWorkers == 0)
@@ -406,16 +402,16 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   size_t nCycles = nWorkers + nJob - 1;
 
   #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles) num_threads(nThreads)
+  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles, sizeJob) num_threads(nThreads)
   for (size_t i = 0; i < nCycles; i++) {
     #pragma omp single
     for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
       size_t currJob = i - j;
       size_t currOp = nWorkers - (nWorkers - j);
 
-      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp)
+      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp, sizeJob)
       if (currJob < nJob - 1)
-        workerList[currOp](&d[currJob], currOp == 0 ? &s[currJob] : &d[currJob]);
+        workerList[currOp](&d[currJob * sizeJob], currOp == 0 ? &s[currJob * sizeJob] : &d[currJob * sizeJob]);
     }
   }
 }
@@ -425,15 +421,15 @@ void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   assert (nWorkers >= 1);
   assert (sizeJob > 0);
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   #pragma omp parallel default(none) shared(d, s, nJob, sizeJob, worker)
   {
     #pragma omp single
     for (size_t i = 0; i < nJob; i++) {
       #pragma omp task
-      worker(&d[i], &s[i]);
+      worker(&d[i * sizeJob], &s[i * sizeJob]);
     }
   }
 
@@ -446,8 +442,8 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
   * Based on McCool book - Structured Parallel Programming - Chapter 7.1.
   */
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   int nThreads = omp_get_max_threads();
 
@@ -455,12 +451,12 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
   shared(worker, nJob, d, s, nShift, sizeJob) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
-    TYPE result = 0;
+    char result = 0;
 
     for (size_t j = max(i - nShift, 0); j <= min(i + nShift, nJob); j++)
-      worker(&result, &s[j]);
+      worker(&result, &s[j * sizeJob]);
 
-    memcpy(&d[i], &result, sizeJob);
+    memcpy(&d[i * sizeJob], &result, sizeJob);
   }
 }
 
@@ -494,8 +490,14 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   struct treeNode *tree = calloc(nTreeElems, sizeof(treeNode));
   int nThreads = omp_get_max_threads();
 
-  TYPE *s = src;
-  TYPE *d = dest;
+  // Initialize all the elements of the tree struct
+  for (size_t n = 0; n < nTreeElems; n++) {
+    tree[n].sum = calloc(1, sizeJob);
+    tree[n].fromLeft = calloc(1, sizeJob);
+  }
+
+  char *s = src;
+  char *d = dest;
 
   // Begin up pass
   // Travel each level and do computations
@@ -522,7 +524,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       // If node has no children - its a leaf - assign value -------
       // Check if last level. If not - ignore unused node
       if (level == treeHeight)
-        memcpy(&tree[node].sum, &s[node - firstNode], sizeJob);
+        memcpy(&tree[node].sum, &s[(node - firstNode) * sizeJob], sizeJob);
     }
   }
 
@@ -555,7 +557,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 
       // If at last level, assign value to destiny array
       if (level == treeHeight) {
-        worker(&d[node - firstNode], &tree[node].fromLeft, &tree[node].sum);
+        worker(&d[(node - firstNode) * sizeJob], &tree[node].fromLeft, &tree[node].sum);
         continue;
       }
     }
@@ -575,15 +577,15 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
 
   int nThreads = omp_get_max_threads();
 
-  TYPE *d = dest;
-  TYPE *s = src;
+  char *d = dest;
+  char *s = src;
 
   // Calculate height and width
   size_t height = nJob / 2;
   size_t width = nJob / 2 + nJob % 2;
 
   // Create computation matrix
-  TYPE *compMatrix = calloc(height * width, sizeJob);
+  char *compMatrix = calloc(height * width, sizeJob);
 
   for (size_t i = 0; i < width + height - 1; i++) {
     // Calculate number of cycles for this sweep
@@ -606,26 +608,26 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
 
       // Deal with root case
       if (currV == 0 && currH == 0) {
-        worker(&compMatrix[0], &s[0], &s[width]);
+        worker(&compMatrix[0], &s[0], &s[width * sizeJob]);
         continue;
       }
 
       // Deal with top and left edge-cases
       if (currV == 0)
-        worker(&compMatrix[currPos], &s[currH], &compMatrix[currPos - 1]);
+        worker(&compMatrix[currPos * sizeJob], &s[currH * sizeJob], &compMatrix[(currPos - 1) * sizeJob]);
       else if (currH == 0)
-        worker(&compMatrix[currPos], &compMatrix[currPos - width], &s[currV + width]);
+        worker(&compMatrix[currPos * sizeJob], &compMatrix[(currPos - width) * sizeJob], &s[(currV + width) * sizeJob]);
       else {
         // Normal case
-        worker(&compMatrix[currPos], &compMatrix[currPos - width], &compMatrix[currPos - 1]);
+        worker(&compMatrix[currPos * sizeJob], &compMatrix[(currPos - width) * sizeJob], &compMatrix[(currPos - 1) * sizeJob]);
       }
 
       // Deal with bottom and right edge-cases
       if (currV == height - 1)
-        memcpy(&d[currH], &compMatrix[currPos], sizeJob);
+        memcpy(&d[currH * sizeJob], &compMatrix[currPos * sizeJob], sizeJob);
 
       if (currH == width - 1)
-        memcpy(&d[currV + width], &compMatrix[currPos], sizeJob);
+        memcpy(&d[(currV + width) * sizeJob], &compMatrix[currPos * sizeJob], sizeJob);
     }
   }
 
