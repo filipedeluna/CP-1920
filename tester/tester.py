@@ -10,7 +10,7 @@ import numpy
 now = datetime.datetime.now()
 
 # Constants
-FILE_NAME = f"paralell_tests {now.day}-{now.month}-{now.year} {now.hour}-{now.minute}-{now.second}"
+FILE_NAME = f"paralell_tests {now.day}-{now.month}-{now.year} {now.hour}:{now.minute}:{now.second}.txt"
 NUM_ALGORITHMS = 15
 ITERATIONS_HEAVY = [100, 1000, 10000, 50000, 100000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
@@ -24,9 +24,14 @@ REPETITIONS = 5
 
 
 # Functions -------------------------------------------------------------------------
+def file_write(file_buffer, value):
+    file_buffer.append(f"{str(value)}\n")
+
+
 def run_test(alg_id, single_test_run, output_file, program):
     test_name = ""
     results = []
+    file_buffer = []
 
     # Set default iterations
     iterations = ITERATIONS_HEAVY
@@ -37,8 +42,16 @@ def run_test(alg_id, single_test_run, output_file, program):
 
     total_tests = len(iterations) * len(THREADS)
 
+    # Write iterations and total tests to file
+    file_write(file_buffer, len(iterations))
+    for x in range(0, len(iterations)):
+        file_write(file_buffer, iterations[x])
+
+    file_write(file_buffer, len(THREADS))
+    for x in range(0, len(THREADS)):
+        file_write(file_buffer, THREADS[x])
+
     for i in range(0, len(iterations)):
-        it_results = []
         for t in range(0, len(THREADS)):
             thread_results = []
             for r in range(0, REPETITIONS):
@@ -50,11 +63,13 @@ def run_test(alg_id, single_test_run, output_file, program):
                 running_time = output[1].split(":\t")[1].split(" micro")[0]
                 thread_results.append(int(running_time))
 
-                # Extract test name from program output
-                test_name = output[1].split(":\t")[0][4:]
+                # Extract test name from program output and write to file
+                if test_name == "":
+                    test_name = output[1].split(":\t")[0][6:]
+                    file_write(file_buffer, test_name)
 
-            # Calculate mean of repetitions
-            it_results.append(numpy.mean(thread_results))
+            # Calculate mean of repetitions and write to file
+            file_write(file_buffer, numpy.mean(thread_results))
 
             # Print progress
             curr_test = i * (len(THREADS)) + t + 1
@@ -65,10 +80,9 @@ def run_test(alg_id, single_test_run, output_file, program):
                 print(f"Finished test {curr_test}/{total_tests}.")
 
         # Append mean time to execute for each thread count
-        results.append(it_results)
 
     # Write results to file
-    create_graph(results, test_name, iterations)
+    output_file.writelines(file_buffer)
 
 
 # Handle args -------------------------------------------------------------------------
@@ -97,11 +111,15 @@ if not sys.argv[3].isalpha():
     sys.exit(-1)
 
 output_file = ""
+file_dir = str(sys.argv[3])
 
 try:
-    output_file = open(f"{str(sys.argv[2])}/{FILE_NAME}", 'w')
-except:
-    print("Invalid path.")
+    if not os.path.isdir(file_dir):
+        os.mkdir(file_dir)
+
+    output_file = open(f"{file_dir}/{FILE_NAME}", 'x')
+except OSError as err:
+    print(f"Invalid output path - {err}.")
     sys.exit(-1)
 
 # Start tests -------------------------------------------------------------------------
