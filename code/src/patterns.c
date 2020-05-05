@@ -77,6 +77,26 @@ struct treeNode {
 } treeNode;
 
 /*
+ * TEMP TEST
+*/
+void printTree(struct treeNode *tree, size_t nJob) {
+  int h = 1;
+  for (size_t i = 0; i < nJob; i++) {
+    int currentHeight = (int) log2(i + 1) + 1;
+
+    if (currentHeight != h) {
+      printf("\n");
+      h++;
+    }
+
+    printf("(%.0lf, %.0lf) ", ((double *) tree[i].sum)[0], ((double *) tree[i].fromLeft)[0]);
+  }
+
+  printf("\n\n");
+}
+
+
+/*
  *  Parallel Patterns
 */
 
@@ -302,7 +322,10 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   char *d = dest;
   char *s = src;
 
-  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr)
+  // Boolean array to avoid race conditions
+  int *raceArray = calloc(nJob, sizeof(int));
+
+  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr, raceArray)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
     // Alternative to assert
@@ -311,8 +334,25 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
       exit(1);
     }
 
-    #pragma omp atomic write
-    d[filter[i] * sizeJob] = s[i * sizeJob];
+    // Simulate a lock so operations occur atomically for a given position
+    int isRace;
+    #pragma omp atomic read
+    isRace = raceArray[i];
+
+    if (isRace) {
+      #pragma omp critical
+      for (size_t k = 0; k < sizeJob; k++)
+        d[filter[i] * sizeJob + k] = s[i * sizeJob + k];
+    } else {
+      #pragma omp atomic write
+      raceArray[i] = 1;
+
+      for (size_t k = 0; k < sizeJob; k++)
+        d[filter[i] * sizeJob + k] = s[i * sizeJob + k];
+
+      #pragma omp atomic write
+      raceArray[i] = 0;
+    }
   }
 }
 
@@ -323,7 +363,7 @@ void priorityScatter(void *dest, void *src, size_t nJob, size_t sizeJob, const i
   char *s = src;
 
   #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr)
-  #pragma omp for schedule(static) ordered //priority is given to the elements with higher index in the filter
+  #pragma omp for schedule(static) ordered // Priority is given to the elements with higher index in the filter
   for (size_t i = 0; i < nJob; i++) {
     // Alternative to assert
     if ((size_t) filter[i] >= nJob) {
@@ -421,7 +461,7 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       size_t currOp = nWorkers - (nWorkers - j);
 
       #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp, sizeJob)
-      if (currJob < nJob - 1)
+      if (currJob < nJob)
         workerList[currOp](&d[currJob * sizeJob], currOp == 0 ? &s[currJob * sizeJob] : &d[currJob * sizeJob]);
     }
   }
@@ -439,7 +479,7 @@ void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   {
     #pragma omp single
     for (size_t i = 0; i < nJob; i++) {
-      #pragma omp task
+      #pragma omp task default(none) shared(d, s, i, sizeJob, worker)
       worker(&d[i * sizeJob], &s[i * sizeJob]);
     }
   }
@@ -462,7 +502,7 @@ void stencil(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(
   shared(worker, nJob, d, s, nShift, sizeJob) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
-    char result = 0;
+    char *result = calloc(1, sizeJob);
 
     for (size_t j = max(i - nShift, 0); j <= min(i + nShift, nJob); j++)
       worker(&result, &s[j * sizeJob]);
@@ -526,18 +566,26 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       // Check if node has left and/or right children - not leaf
       if (node * 2 + 1 < nTreeElems) {
         if (node * 2 + 2 < nTreeElems)
-          worker(&tree[node].sum, &tree[node * 2 + 1].sum, &tree[node * 2 + 2].sum);
+          worker(&tree[node].sum[0], &tree[node * 2 + 1].sum[0], &tree[node * 2 + 2].sum[0]);
         else
-          memcpy(&tree[node].sum, &tree[node * 2 + 1].sum, sizeJob);
+          memcpy(&tree[node].sum[0], &tree[node * 2 + 1].sum[0], sizeJob);
         continue;
       }
 
       // If node has no children - its a leaf - assign value -------
-      // Check if last level. If not - ignore unused node
-      if (level == treeHeight)
-        memcpy(&tree[node].sum, &s[(node - firstNode) * sizeJob], sizeJob);
+      // Check if last level and calculate node number accordingly
+      size_t nodeNum = node - firstNode;
+
+      if (level != treeHeight) {
+        nodeNum += nTreeElems - pow(2, level) - 1;
+
+      }
+
+      memcpy(&tree[node].sum[0], &s[nodeNum * sizeJob], sizeJob);
     }
   }
+
+  printTree(tree, nTreeElems);
 
   // Begin down pass
   // Travel each level and do computations
@@ -554,7 +602,8 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     for (size_t node = firstNode; node <= lastNode; node++) {
       // If first node in level, assign value of 0 from left
       if (node == firstNode) {
-        tree[node].fromLeft = 0;
+        free(tree[node].fromLeft);
+        tree[node].fromLeft = calloc(1, sizeJob);
 
         if (level == 1)
           continue;
@@ -562,16 +611,24 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
 
       // If its not root, check if node is right or left node
       if (node % 2 == 0)
-        worker(&tree[node].fromLeft, &tree[node - 1].fromLeft, &tree[node - 1].sum);
+        worker(&tree[node].fromLeft[0], &tree[node - 1].fromLeft[0], &tree[node - 1].sum[0]);
       else
-        worker(&tree[node].fromLeft, &tree[node].fromLeft, &tree[(node - 1) / 2].fromLeft);
+        worker(&tree[node].fromLeft[0], &tree[node].fromLeft[0], &tree[(node - 1) / 2].fromLeft[0]);
 
       // If at last level, assign value to destiny array
       if (level == treeHeight) {
-        worker(&d[(node - firstNode) * sizeJob], &tree[node].fromLeft, &tree[node].sum);
+        worker(&d[(node - firstNode) * sizeJob], &tree[node].fromLeft[0], &tree[node].sum[0]);
         continue;
       }
     }
+  }
+
+  printTree(tree, nTreeElems);
+
+
+  for (size_t elem = 0; elem < nTreeElems; elem++) {
+    free(tree[elem].sum);
+    free(tree[elem].fromLeft);
   }
 
   free(tree);
