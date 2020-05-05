@@ -127,7 +127,7 @@ void hyperplane(
     void (*worker)(void *v1, const void *v2, const void *v3) // [ v1 = op (v2, v3) ]
 );
 
-void quickSortImpl(
+void quickSort(
     int *arr, // Source int array
     size_t arrSize // # elements in the source int array
 );

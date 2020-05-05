@@ -703,38 +703,45 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
   free(compMatrix);
 }
 
-size_t partition(int *arr, size_t arrSize, int pivot, size_t right) {
+size_t partition(int *arr, size_t pivot, size_t right) {
   int newPivot = arr[right];
-  int i = pivot - 1;
 
-  for (size_t j = pivot; j < right - 1; j++) {
-    if (arr[j] < newPivot) {
-      i++;
+  // Parition sliding window starts at pivot - 1
+  size_t wStart = pivot - 1;
 
-      int temp = arr[i];
-      arr[i] = arr[j];
-      arr[j] = temp;
+  for (size_t wFinish = pivot; wFinish < right - 1; wFinish++) {
+    if (arr[wFinish] < newPivot) {
+      wStart++;
+
+      int temp = arr[wStart];
+      arr[wStart] = arr[wFinish];
+      arr[wFinish] = temp;
     }
   }
 
-  int temp = arr[i + 1];
-  arr[i] = arr[right];
+  int temp = arr[wStart + 1];
+  arr[wStart] = arr[right];
   arr[right] = temp;
 
-  return i + 1;
+  return wStart + 1;
 }
 
-void quickSort(int *arr, size_t arrSize, int pivot, int right) {
-  if (pivot < right) {
-    size_t pIndex = partition(arr, arrSize, pivot, right);
+void quickSortImpl(int *arr, size_t pivot, size_t right) {
+  if (pivot >= right)
+    return;
 
-    quickSort(arr, arrSize, pivot, pIndex - 1);
+  size_t partitionPivot = partition(arr, pivot, right);
 
-    quickSort(arr, arrSize, pIndex + 1, right);
-  }
+  #pragma omp task default(none) shared(arr, pivot, partitionPivot)
+  quickSortImpl(arr, pivot, partitionPivot - 1);
+
+  #pragma omp task default(none) shared(arr, pivot, partitionPivot, right)
+  quickSortImpl(arr, partitionPivot + 1, right);
+
+  #pragma omp taskwait
 }
 
-void quickSortImpl(int *arr, size_t arrSize) {
+void quickSort(int *arr, size_t arrSize) {
   /*
    * Quick Sort implementation based on Introduction to Algorithms book
    * Ideally it would work with every type of data but the fact ints and doubles
@@ -744,10 +751,17 @@ void quickSortImpl(int *arr, size_t arrSize) {
    */
 
   assert(arr != NULL);
-  assert(arrSize >= 0);
+  assert(arrSize > 0);
 
-  if (arrSize <= 1)
+  if (arrSize == 1)
     return;
+
+  int nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) \
+  shared(arr, arrSize) num_threads(nThreads)
+  {
+    #pragma omp single
+    quickSortImpl(arr, arrSize / 2, arrSize);
+  }
 }
-
-
