@@ -534,7 +534,7 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
                       ? nJob
                       : nJob % 2 == 0
                         ? nJob * 2 - 1
-                        : nJob * 2;
+                        : (nJob - 1) * 2;
 
   // Calculate how many levels tree will have and verify if it is odd or not (one less element)
   int treeHeight = (int) log2(nTreeElems) + 1;
@@ -576,12 +576,16 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       // Check if last level and calculate node number accordingly
       size_t nodeNum = node - firstNode;
 
-      if (level != treeHeight)
-        nodeNum += nTreeElems - pow(2, level) - 1;
+      if (level != treeHeight) {
+        size_t lastLevelNodes = nTreeElems - (pow(2, level) - 1) + nJob % 2;
+        nodeNum += lastLevelNodes / 2 - lastLevelNodes % 2;
+      }
 
       memcpy(&tree[node].sum[0], &s[nodeNum * sizeJob], sizeJob);
     }
   }
+
+  // printTree(tree, nTreeElems);
 
   // Begin down pass
   // Travel each level and do computations
@@ -611,16 +615,17 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       if (node * 2 + 1 >= nTreeElems) {
         size_t nodeNum = node - firstNode;
 
-        if (level != treeHeight)
-          nodeNum += nTreeElems - pow(2, level) - 1;
+        if (level != treeHeight) {
+          size_t lastLevelNodes = nTreeElems - (pow(2, level) - 1) + nJob % 2;
+          nodeNum += lastLevelNodes / 2 - lastLevelNodes % 2;
+        }
 
         worker(&d[nodeNum * sizeJob], &tree[node].fromLeft[0], &tree[node].sum[0]);
       }
     }
   }
 
-  printTree(tree, nTreeElems);
-
+  // printTree(tree, nTreeElems);
 
   for (size_t elem = 0; elem < nTreeElems; elem++) {
     free(tree[elem].sum);
