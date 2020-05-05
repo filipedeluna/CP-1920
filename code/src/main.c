@@ -60,24 +60,14 @@ int main(int argc, char *argv[]) {
 
   printTYPE(src, args.iterations, "SRC");
 
-  double start, end;
+  double start_time = testFunction[args.test_id - 1](src, args.iterations, TYPE_SIZE);
 
-  start = omp_get_wtime();
+  double timeElapsed = (omp_get_wtime() - start_time) * 1e6;
 
-  testFunction[args.test_id - 1](src, args.iterations, TYPE_SIZE);
-
-  end = omp_get_wtime();
-
-  double timeMs = (end - start) * 1e6;
-
-  // if (timeMs > 10000)
-  //printf("%s:\t%.0lf milliseconds\n", testNames[args.test_id - 1], timeMs / 1000);
-  // else
-  printf("%s:\t%.0lf microseconds\n", testNames[args.test_id - 1], timeMs);
+  printf("%s:\t%.0lf microseconds\n", testNames[args.test_id - 1], timeElapsed);
 
   if (DEBUG_MODE)
     printf("\n\n");
-
 
   free(src);
 

@@ -4,7 +4,7 @@
 extern int WEIGHTED_MODE;
 extern int ITERATIONS;
 
-typedef void (*TESTFUNCTION)(void *, size_t, size_t);
+typedef double (*TESTFUNCTION)(void *, size_t, size_t);
 
 extern TESTFUNCTION testFunction[];
 

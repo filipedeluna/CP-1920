@@ -104,47 +104,63 @@ static void workerDivTwo(void *a, const void *b) {
 // Unit testing funtions
 //=======================================================
 
-void testMap(void *src, size_t n, size_t size) {
+double testMap(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   map(dest, src, n, size, workerAddOne);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testReduce(void *src, size_t n, size_t size) {
+double testReduce(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(size);
+
+  double time = omp_get_wtime();
 
   reduce(dest, src, n, size, workerAdd);
 
   printTYPE(dest, 1, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testInclusiveScan(void *src, size_t n, size_t size) {
+double testInclusiveScan(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   scan(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testExclusiveScan(void *src, size_t n, size_t size) {
+double testExclusiveScan(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   exclusiveScan(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testPack(void *src, size_t n, size_t size) {
+double testPack(void *src, size_t n, size_t size) {
   int *filter = calloc(n, sizeof(*filter));
 
   int count = 0;
@@ -155,6 +171,8 @@ void testPack(void *src, size_t n, size_t size) {
 
   TYPE *dest = calloc(count, size);
 
+  double time = omp_get_wtime();
+
   int newN = pack(dest, src, n, size, filter);
 
   printInt(filter, n, "filter");
@@ -163,9 +181,11 @@ void testPack(void *src, size_t n, size_t size) {
 
   free(filter);
   free(dest);
+
+  return time;
 }
 
-void testGather(void *src, size_t n, size_t size) {
+double testGather(void *src, size_t n, size_t size) {
   int nFilter = ITERATIONS / 2;
   int *filter = calloc(nFilter, sizeof(int));
 
@@ -176,15 +196,19 @@ void testGather(void *src, size_t n, size_t size) {
 
   printInt(filter, nFilter, "filter");
 
+  double time = omp_get_wtime();
+
   gather(dest, src, n, size, filter, nFilter);
 
   printTYPE(dest, nFilter, __func__);
 
   free(dest);
   free(filter);
+
+  return time;
 }
 
-void testScatter(void *src, size_t n, size_t size) {
+double testScatter(void *src, size_t n, size_t size) {
   int nDest = 6;
 
   TYPE *dest = malloc(nDest * size);
@@ -197,6 +221,8 @@ void testScatter(void *src, size_t n, size_t size) {
     filter[i] = rand() % nDest;
 
   printInt(filter, n, "filter");
+
+  double time = omp_get_wtime();
 
   scatter(dest, src, n, size, filter);
 
@@ -204,9 +230,11 @@ void testScatter(void *src, size_t n, size_t size) {
 
   free(filter);
   free(dest);
+
+  return time;
 }
 
-void testPriorityScatter(void *src, size_t n, size_t size) {
+double testPriorityScatter(void *src, size_t n, size_t size) {
   int nDest = 6;
 
   TYPE *dest = malloc(nDest * size);
@@ -220,15 +248,19 @@ void testPriorityScatter(void *src, size_t n, size_t size) {
 
   printInt(filter, n, "filter");
 
+  double time = omp_get_wtime();
+
   priorityScatter(dest, src, n, size, filter);
 
   printTYPE(dest, nDest, __func__);
 
   free(filter);
   free(dest);
+
+  return time;
 }
 
-void testMapPipeline(void *src, size_t n, size_t size) {
+double testMapPipeline(void *src, size_t n, size_t size) {
   void (*pipelineFunction[])(void *, const void *) = {
       workerMultTwo,
       workerAddOne,
@@ -238,15 +270,19 @@ void testMapPipeline(void *src, size_t n, size_t size) {
   int nPipelineFunction = sizeof(pipelineFunction) / sizeof(pipelineFunction[0]);
 
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   pipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testItemBoundPipeline(void *src, size_t n, size_t size) {
+double testItemBoundPipeline(void *src, size_t n, size_t size) {
   void (*pipelineFunction[])(void *, const void *) = {
       workerMultTwo,
       workerAddOne,
@@ -257,14 +293,18 @@ void testItemBoundPipeline(void *src, size_t n, size_t size) {
 
   TYPE *dest = malloc(n * size);
 
+  double time = omp_get_wtime();
+
   itemBoundPipeline(dest, src, n, size, pipelineFunction, nPipelineFunction);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testSerialPipeline(void *src, size_t n, size_t size) {
+double testSerialPipeline(void *src, size_t n, size_t size) {
   // Force worker to 128 to get improvement results
   size_t nWorkers = 128;  //omp_get_max_threads();
 
@@ -275,24 +315,32 @@ void testSerialPipeline(void *src, size_t n, size_t size) {
 
   TYPE *dest = malloc(n * size);
 
+  double time = omp_get_wtime();
+
   serialPipeline(dest, src, n, size, pipelineFunction, nWorkers);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testFarm(void *src, size_t n, size_t size) {
+double testFarm(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   farm(dest, src, n, size, workerAddOne, 3);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testStencil(void *src, size_t n, size_t size) {
+double testStencil(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
 
   // Need static value for accurate tests, although random is fun
@@ -301,38 +349,50 @@ void testStencil(void *src, size_t n, size_t size) {
 
   // printf("Stencil shift size: %d\n", 5 /* nShift */);
 
+  double time = omp_get_wtime();
+
   stencil(dest, src, n, size, workerAccum, 5);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testParallelPrefix(void *src, size_t n, size_t size) {
+double testParallelPrefix(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   parallelPrefix(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
-void testHyperplane(void *src, size_t n, size_t size) {
+double testHyperplane(void *src, size_t n, size_t size) {
   TYPE *dest = malloc(n * size);
+
+  double time = omp_get_wtime();
 
   hyperplane(dest, src, n, size, workerAdd);
 
   printTYPE(dest, n, __func__);
 
   free(dest);
+
+  return time;
 }
 
 //=======================================================
 // List of unit test functions
 //=======================================================
 
-typedef void (*TESTFUNCTION)(void *, size_t, size_t);
+typedef double (*TESTFUNCTION)(void *, size_t, size_t);
 
 TESTFUNCTION testFunction[] = {
     testMap,
