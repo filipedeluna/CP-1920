@@ -576,16 +576,12 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       // Check if last level and calculate node number accordingly
       size_t nodeNum = node - firstNode;
 
-      if (level != treeHeight) {
+      if (level != treeHeight)
         nodeNum += nTreeElems - pow(2, level) - 1;
-
-      }
 
       memcpy(&tree[node].sum[0], &s[nodeNum * sizeJob], sizeJob);
     }
   }
-
-  printTree(tree, nTreeElems);
 
   // Begin down pass
   // Travel each level and do computations
@@ -600,25 +596,25 @@ void parallelPrefix(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
     shared(worker, nJob, d, sizeJob, tree, treeHeight, level, firstNode, lastNode, nTreeElems)
     #pragma omp for schedule(static)
     for (size_t node = firstNode; node <= lastNode; node++) {
-      // If first node in level, assign value of 0 from left
-      if (node == firstNode) {
-        free(tree[node].fromLeft);
-        tree[node].fromLeft = calloc(1, sizeJob);
-
-        if (level == 1)
-          continue;
-      }
+      // If first node in level, keep from left value of 0
+      if (level == 1)
+        continue;
 
       // If its not root, check if node is right or left node
       if (node % 2 == 0)
-        worker(&tree[node].fromLeft[0], &tree[node - 1].fromLeft[0], &tree[node - 1].sum[0]);
+        worker(&tree[node].fromLeft[0], &tree[(node - 1) / 2].fromLeft[0], &tree[node - 1].sum[0]);
       else
         worker(&tree[node].fromLeft[0], &tree[node].fromLeft[0], &tree[(node - 1) / 2].fromLeft[0]);
 
-      // If at last level, assign value to destiny array
-      if (level == treeHeight) {
-        worker(&d[(node - firstNode) * sizeJob], &tree[node].fromLeft[0], &tree[node].sum[0]);
-        continue;
+      // If node has no children - its a leaf - assign value to destiny array
+      // Check if last level and calculate node number accordingly
+      if (node * 2 + 1 >= nTreeElems) {
+        size_t nodeNum = node - firstNode;
+
+        if (level != treeHeight)
+          nodeNum += nTreeElems - pow(2, level) - 1;
+
+        worker(&d[nodeNum * sizeJob], &tree[node].fromLeft[0], &tree[node].sum[0]);
       }
     }
   }
