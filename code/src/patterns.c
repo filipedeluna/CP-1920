@@ -702,3 +702,52 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
 
   free(compMatrix);
 }
+
+size_t partition(int *arr, size_t arrSize, int pivot, size_t right) {
+  int newPivot = arr[right];
+  int i = pivot - 1;
+
+  for (size_t j = pivot; j < right - 1; j++) {
+    if (arr[j] < newPivot) {
+      i++;
+
+      int temp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = temp;
+    }
+  }
+
+  int temp = arr[i + 1];
+  arr[i] = arr[right];
+  arr[right] = temp;
+
+  return i + 1;
+}
+
+void quickSort(int *arr, size_t arrSize, int pivot, int right) {
+  if (pivot < right) {
+    size_t pIndex = partition(arr, arrSize, pivot, right);
+
+    quickSort(arr, arrSize, pivot, pIndex - 1);
+
+    quickSort(arr, arrSize, pIndex + 1, right);
+  }
+}
+
+void quickSortImpl(int *arr, size_t arrSize) {
+  /*
+   * Quick Sort implementation based on Introduction to Algorithms book
+   * Ideally it would work with every type of data but the fact ints and doubles
+   * cannot be compared simply by resorting to memcmp to compare bit by bit, we are forced
+   * to adapt the casting. As it was needed for a parallel algortihm, we decided to resort
+   * to the int implementation.
+   */
+
+  assert(arr != NULL);
+  assert(arrSize >= 0);
+
+  if (arrSize <= 1)
+    return;
+}
+
+
