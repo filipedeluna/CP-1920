@@ -3,8 +3,6 @@ import os
 import sys
 import time
 import datetime
-
-import matplotlib.pyplot as pyplot
 import numpy
 
 now = datetime.datetime.now()
@@ -16,12 +14,12 @@ ITERATIONS_MED = [500, 1000, 5000, 10000, 50000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
 
 LIGHT_ALGS = [
-    11, # Serial Pipeline
+    11,  # Serial Pipeline
     15  # Hyperplane
 ]
 MED_ALGS = [
     7,  # Scatter
-    12, # Farm
+    12,  # Farm
 ]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -35,9 +33,10 @@ def file_write(file_buffer, value):
     file_buffer.append(f"{str(value)}\n")
 
 
-def run_test(alg_id, single_test_run, output_file, program):
+def run_test(alg_id):
     test_name = ""
     results = []
+
     file_buffer = []
 
     # Set default iterations
@@ -99,7 +98,7 @@ if len(sys.argv) != 4:
     print("Invalid arguments - PROGRAM_LOCATION TEST_NUMBER (or 0 for all) and OUTPUT_FOLDER.")
     sys.exit(-1)
 
-if not sys.argv[1].isalpha() and not os.path.isfile(str(sys.argv[1])):
+if not os.path.isfile(str(sys.argv[1])):
     print("Expected valid program.")
     sys.exit(-1)
 
@@ -136,10 +135,14 @@ start_time = time.time()
 
 # Run all algorithms or single
 if algorithm_id == 0:
+    output_file.write(f"{NUM_ALGORITHMS}\n")
+
     for alg in range(1, NUM_ALGORITHMS + 1):
-        run_test(alg, False, output_file, program)
+        run_test(alg)
 else:
-    run_test(algorithm_id, True, output_file, program)
+    output_file.write("1\n")
+
+    run_test(algorithm_id)
 
 output_file.close()
 
