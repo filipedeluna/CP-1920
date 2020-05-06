@@ -311,8 +311,7 @@ double testItemBoundPipeline(void *src, size_t n, size_t size) {
 }
 
 double testSerialPipeline(void *src, size_t n, size_t size) {
-  // Force worker to 128 to get improvement results
-  size_t nWorkers = 128;  //omp_get_max_threads();
+  size_t nWorkers = 2000;
 
   void (**pipelineFunction)(void *, const void *) = calloc(nWorkers, sizeof(pipelineFunction[0]));
 

@@ -17,6 +17,7 @@ LIGHT_ALGS = [
     11,  # Serial Pipeline
     15  # Hyperplane
 ]
+
 MED_ALGS = [
     7,  # Scatter
     12,  # Farm

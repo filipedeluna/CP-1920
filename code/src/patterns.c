@@ -455,10 +455,10 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
   // Calculate number of necessary loop cycles
   size_t nCycles = nWorkers + nJob - 1;
 
-  #pragma omp parallel default(none) \
-  shared(workerList, nJob, nWorkers, nThreads, d, s, nCycles, sizeJob) num_threads(nThreads)
   for (size_t i = 0; i < nCycles; i++) {
-    #pragma omp single
+    #pragma omp parallel default(none) \
+    shared(workerList, nJob, nWorkers, d, s, i, sizeJob) num_threads(nThreads)
+    #pragma omp for schedule(static)
     for (size_t j = 0; j < min(i + 1, nWorkers); j++) {
       size_t currJob = i - j;
       size_t currOp = nWorkers - (nWorkers - j);
@@ -466,7 +466,6 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       if (currJob >= nJob)
         continue;
 
-      #pragma omp task default(none) shared(workerList, s, d, currJob, currOp, sizeJob)
       workerList[currOp](&d[currJob * sizeJob], currOp == 0 ? &s[currJob * sizeJob] : &d[currJob * sizeJob]);
     }
   }
