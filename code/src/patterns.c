@@ -319,14 +319,23 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
   gatherImpl(dest, src, nJob, sizeJob, filter, nFilter, omp_get_max_threads());
 }
 
-void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {//this scatter is atomic
+void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) { //this scatter is atomic
   filteredAsserts(dest, src, nJob, sizeJob, filter);
+
+  /*
+   * Atomic implementation of scatter resorting ot quicksort to avoid collisions
+  */
 
   char *d = dest;
   char *s = src;
 
+  // Use quick sort to sort the filter positions
+  // quickSort(filter, nJob);
+
+
   // Boolean array to avoid race conditions
   int *raceArray = calloc(nJob, sizeof(int));
+
 
   #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr, raceArray)
   #pragma omp for schedule(static)
@@ -772,5 +781,88 @@ void quickSort(int *arr, size_t arrSize) {
   {
     #pragma omp single
     quickSortImpl(arr, 0, (long) arrSize - 1);
+  }
+}
+
+long partition2(int *arr1, char *arr2, size_t sizeJob, long pivot, long right) {
+  // Partition sliding window starts at pivot - 1
+  long rValue = arr1[right];
+  long wStart = pivot - 1;
+
+  int temp1;
+  char *temp2 = calloc(1, sizeJob);
+
+  for (long wFinish = pivot; wFinish <= right - 1; wFinish++) {
+    if (arr1[wFinish] > rValue)
+      continue;
+
+    wStart++;
+
+    // Swap in arr1
+    temp1 = arr1[wStart];
+    arr1[wStart] = arr1[wFinish];
+    arr1[wFinish] = temp1;
+
+    // Swap in arr2
+    memcpy(temp2, &arr2[wStart * sizeJob], sizeJob);
+    memcpy(&arr2[wStart * sizeJob], &arr2[wFinish * sizeJob], sizeJob);
+    memcpy(&arr2[wFinish * sizeJob], temp2, sizeJob);
+  }
+
+  // Swap in arr1
+  temp1 = arr1[wStart + 1];
+  arr1[wStart + 1] = arr1[right];
+  arr1[right] = temp1;
+
+  // Swap in arr2
+  memcpy(temp2, &arr2[(wStart + 1) * sizeJob], sizeJob);
+  memcpy(&arr2[(wStart + 1) * sizeJob], &arr2[right * sizeJob], sizeJob);
+  memcpy(&arr2[right * sizeJob], temp2, sizeJob);
+
+  free(temp2);
+
+  return wStart + 1;
+}
+
+void quickSortImpl2(int *arr1, char *arr2, size_t sizeJob, long pivot, long right) {
+  if (pivot >= right)
+    return;
+
+  long partitionPivot = partition2(arr1, arr2, sizeJob, pivot, right);
+
+  // Keep from making tasks when amount of work is low
+  if (right - pivot < QS_TRESHOLD) {
+    quickSortImpl2(arr1, arr2, sizeJob, pivot, partitionPivot - 1);
+
+    quickSortImpl2(arr1, arr2, sizeJob, partitionPivot + 1, right);
+  } else {
+    #pragma omp task default(none) shared(arr1, arr2, sizeJob, pivot, partitionPivot)
+    quickSortImpl2(arr1, arr2, sizeJob, pivot, partitionPivot - 1);
+
+    #pragma omp task default(none) shared(arr1, arr2, sizeJob, pivot, partitionPivot, right)
+    quickSortImpl2(arr1, arr2, sizeJob, partitionPivot + 1, right);
+
+    #pragma omp taskwait
+  }
+}
+
+void quickSort2(int *arr1, char *arr2, size_t sizeJob, size_t arrSize) {
+  /*
+   * This quicksort implementation sorts an array and imitates its positions on the second one
+  */
+
+  assert(arr1 != NULL);
+  assert(arr2 != NULL);
+  assert(arrSize > 0);
+
+  if (arrSize == 1)
+    return;
+
+  int nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) shared(arr1, arr2, sizeJob, arrSize) num_threads(nThreads)
+  {
+    #pragma omp single
+    quickSortImpl2(arr1, arr2, sizeJob, 0, (long) arrSize - 1);
   }
 }

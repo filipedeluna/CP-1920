@@ -132,5 +132,12 @@ void quickSort(
     size_t arrSize // # elements in the source int array
 );
 
+void quickSort2(
+    int *arr1, // Source int array
+    char *arr2, // Dependent object array
+    size_t sizeJob, // Dependent object array object size
+    size_t arrSize // # elements in the source int array
+);
+
 
 #endif

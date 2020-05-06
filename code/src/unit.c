@@ -412,6 +412,33 @@ double testQuickSort(void *src, size_t n, size_t size) {
   return time;
 }
 
+double testQuickSort2(void *src, size_t n, size_t size) {
+  // Ignore input array and size to make use of existing signature
+  (void) src;
+  (void) size;
+
+  // Generate random numbers for ordering and fill array
+  int *randArr = calloc(n, sizeof(int));
+
+  for (size_t i = 0; i < n; i++)
+    randArr[i] = rand() % n;
+
+  printInt(randArr, n, __func__);
+
+  double time = omp_get_wtime();
+
+  quickSort2(randArr, src, size, n);
+
+  printTYPE(src, n, __func__);
+
+  printInt(randArr, n, __func__);
+
+  free(randArr);
+
+  return time;
+}
+
+
 //=======================================================
 // List of unit test functions
 //=======================================================
@@ -434,7 +461,8 @@ TESTFUNCTION testFunction[] = {
     testStencil,
     testParallelPrefix,
     testHyperplane,
-    testQuickSort
+    testQuickSort,
+    testQuickSort2
 };
 
 char *testNames[] = {
@@ -453,7 +481,8 @@ char *testNames[] = {
     "test: Stencil",
     "test: Parallel Prefix",
     "test: Hyperplane",
-    "test: Int Quick Sort"
+    "test: Int Quick Sort",
+    "test: Int Double Quick Sort"
 };
 
 int nTestFunction = sizeof(testFunction) / sizeof(testFunction[0]);
