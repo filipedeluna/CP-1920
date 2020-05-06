@@ -479,7 +479,9 @@ void farm(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worker)(voi
   char *d = dest;
   char *s = src;
 
-  #pragma omp parallel default(none) shared(d, s, nJob, sizeJob, worker)
+  size_t nThreads = omp_get_max_threads();
+
+  #pragma omp parallel default(none) shared(d, s, nJob, sizeJob, worker) num_threads(nThreads)
   {
     #pragma omp single
     for (size_t i = 0; i < nJob; i++) {

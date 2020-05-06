@@ -9,26 +9,15 @@
 #include "args.h"
 
 #define FMT "%lf"
-#define SLEEP_AMOUNT_NANOSECS 1
+#define SLEEP_WEIGHT 250
 
 int WEIGHTED_MODE = 0;
 int ITERATIONS = 0;
 
-// This allows workers to sleep to simulate work
-void sleepWeight() {
-  if (!WEIGHTED_MODE)
-    return;
-
-  struct timespec ts;
-
-  ts.tv_sec = SLEEP_AMOUNT_NANOSECS / 1e9;
-  ts.tv_nsec = SLEEP_AMOUNT_NANOSECS;
-
-  int check;
-
-  do {
-    check = nanosleep(&ts, &ts);
-  } while (check && errno == EINTR);
+// This allows workers to simulate work
+void addWeight() {
+  for (int i = 0; i < SLEEP_WEIGHT; i++)
+    (void) i;
 }
 
 //=======================================================
@@ -57,7 +46,7 @@ static void workerAdd(void *a, const void *b, const void *c) {
   // a = b + c
   *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
 
-  sleepWeight();
+  addWeight();
 }
 
 /*
@@ -65,7 +54,7 @@ static void workerSubtract(void* a, const void* b, const void* c) {
     // a = n - c
     *(TYPE *)a = *(TYPE *)b - *(TYPE *)c;
 
-    sleepWeight();
+    addWeight();
 }
 */
 
@@ -74,7 +63,7 @@ static void workerMultiply(void* a, const void* b, const void* c) {
     // a = b * c
     *(TYPE *)a = *(TYPE *)b + *(TYPE *)c;
 
-        sleepWeight();
+        addWeight();
 }
 */
 
@@ -82,28 +71,28 @@ static void workerAddOne(void *a, const void *b) {
   // a = b + 1
   *(TYPE *) a = *(TYPE *) b + 1;
 
-  sleepWeight();
+  addWeight();
 }
 
 static void workerAccum(void *a, const void *b) {
   // a += b
   *(TYPE *) a += *(TYPE *) b;
 
-  sleepWeight();
+  addWeight();
 }
 
 static void workerMultTwo(void *a, const void *b) {
   // a = b * 2
   *(TYPE *) a = *(TYPE *) b * 2;
 
-  sleepWeight();
+  addWeight();
 }
 
 static void workerDivTwo(void *a, const void *b) {
   // a = b / 2
   *(TYPE *) a = *(TYPE *) b / 2;
 
-  sleepWeight();
+  addWeight();
 }
 
 //=======================================================

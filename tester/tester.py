@@ -21,6 +21,14 @@ LIGHT_ALGS = [
 MED_ALGS = [
     7,  # Scatter
     12,  # Farm
+    13,  # Stencil
+    14,  # Parallel Prefix
+]
+
+WEIGHTED = [
+    2,  # Reduce
+    12,  # Farm
+    11,  # Serial Pipeline
 ]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -61,13 +69,20 @@ def run_test(alg_id):
     for x in range(0, len(THREADS)):
         file_write(file_buffer, THREADS[x])
 
+    test_start_time = time.time()
+
     for i in range(0, len(iterations)):
         it_results = []
         for t in range(0, len(THREADS)):
             thread_results = []
             for r in range(0, REPETITIONS):
                 # Run and extract result from program
-                stream = os.popen(f"{program} -i {iterations[i]} -k {alg_id} -t {THREADS[t]} -w")
+                command = f"{program} -i {iterations[i]} -k {alg_id} -t {THREADS[t]}"
+
+                if WEIGHTED.count(alg_id) != 0:
+                    command += " -w"
+
+                stream = os.popen(command)
                 output = stream.read().split("Done!\n\n")
 
                 # Extract time from program output
@@ -77,6 +92,9 @@ def run_test(alg_id):
                 # Extract test name from program output and write to file
                 if test_name == "":
                     test_name = output[1].split(":\t")[0][6:]
+                    if WEIGHTED.count(alg_id) != 0:
+                        test_name += " (Weighted)"
+
                     file_write(file_buffer, test_name)
 
             # Calculate mean of repetitions and write to file
@@ -92,6 +110,7 @@ def run_test(alg_id):
 
     # Write results to file
     output_file.writelines(file_buffer)
+    print(f"Time to complete \"{test_name}\"': {time.time() - test_start_time} seconds.")
 
 
 # Handle args -------------------------------------------------------------------------
