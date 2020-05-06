@@ -7,7 +7,7 @@
 #include "patterns.h"
 
 // Define treshold where it makes more sense to serialize code
-#define QS_TRESHOLD 1000
+#define QUICKSOORT_TRESHOLD 1000
 
 /*
  *  UTILS
@@ -737,7 +737,7 @@ void quickSortImpl(int *arr, long pivot, long right) {
   long partitionPivot = partition(arr, pivot, right);
 
   // Keep from making tasks when amount of work is low
-  if (right - pivot < QS_TRESHOLD) {
+  if (right - pivot < QUICKSOORT_TRESHOLD) {
     quickSortImpl(arr, pivot, partitionPivot - 1);
 
     quickSortImpl(arr, partitionPivot + 1, right);
@@ -823,7 +823,7 @@ void quickSortImpl2(int *arr1, char *arr2, size_t sizeJob, long pivot, long righ
   long partitionPivot = partition2(arr1, arr2, sizeJob, pivot, right);
 
   // Keep from making tasks when amount of work is low
-  if (right - pivot < QS_TRESHOLD) {
+  if (right - pivot < QUICKSOORT_TRESHOLD) {
     quickSortImpl2(arr1, arr2, sizeJob, pivot, partitionPivot - 1);
 
     quickSortImpl2(arr1, arr2, sizeJob, partitionPivot + 1, right);

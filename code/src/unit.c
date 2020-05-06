@@ -9,7 +9,7 @@
 #include "args.h"
 
 #define FMT "%lf"
-#define SLEEP_AMOUNT_MICROSECS 1
+#define SLEEP_AMOUNT_NANOSECS 1
 
 int WEIGHTED_MODE = 0;
 int ITERATIONS = 0;
@@ -21,8 +21,8 @@ void sleepWeight() {
 
   struct timespec ts;
 
-  ts.tv_sec = SLEEP_AMOUNT_MICROSECS / 1e6;
-  ts.tv_nsec = SLEEP_AMOUNT_MICROSECS * 1000;
+  ts.tv_sec = SLEEP_AMOUNT_NANOSECS / 1e9;
+  ts.tv_nsec = SLEEP_AMOUNT_NANOSECS;
 
   int check;
 
@@ -311,7 +311,7 @@ double testItemBoundPipeline(void *src, size_t n, size_t size) {
 }
 
 double testSerialPipeline(void *src, size_t n, size_t size) {
-  size_t nWorkers = 2000;
+  size_t nWorkers = 128;
 
   void (**pipelineFunction)(void *, const void *) = calloc(nWorkers, sizeof(pipelineFunction[0]));
 

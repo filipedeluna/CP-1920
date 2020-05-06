@@ -67,7 +67,7 @@ def run_test(alg_id):
             thread_results = []
             for r in range(0, REPETITIONS):
                 # Run and extract result from program
-                stream = os.popen(f"{program} -i {iterations[i]} -k {alg_id} -t {THREADS[t]}")
+                stream = os.popen(f"{program} -i {iterations[i]} -k {alg_id} -t {THREADS[t]} -w")
                 output = stream.read().split("Done!\n\n")
 
                 # Extract time from program output
