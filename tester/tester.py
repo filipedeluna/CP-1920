@@ -16,12 +16,12 @@ ITERATIONS_MED = [500, 1000, 5000, 10000, 50000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
 
 LIGHT_ALGS = [
-    11, # Serial Pipeline
+    11,  # Serial Pipeline
     15  # Hyperplane
 ]
 MED_ALGS = [
     7,  # Scatter
-    12, # Farm
+    12,  # Farm
 ]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -39,6 +39,12 @@ def run_test(alg_id, single_test_run, output_file, program):
     test_name = ""
     results = []
     file_buffer = []
+
+    # Write amount of tests to be done
+    if single_test_run:
+        file_write(file_buffer, 1)
+    else:
+        file_write(file_buffer, NUM_ALGORITHMS)
 
     # Set default iterations
     iterations = ITERATIONS_HEAVY
