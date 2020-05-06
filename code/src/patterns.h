@@ -127,4 +127,17 @@ void hyperplane(
     void (*worker)(void *v1, const void *v2, const void *v3) // [ v1 = op (v2, v3) ]
 );
 
+void quickSort(
+    int *arr, // Source int array
+    size_t arrSize // # elements in the source int array
+);
+
+void quickSort2(
+    int *arr1, // Source int array
+    char *arr2, // Dependent object array
+    size_t sizeJob, // Dependent object array object size
+    size_t arrSize // # elements in the source int array
+);
+
+
 #endif

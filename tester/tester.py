@@ -10,18 +10,16 @@ import numpy
 now = datetime.datetime.now()
 
 # Constants
-FILE_NAME = f"paralell_tests {now.day}-{now.month}-{now.year} {now.hour}:{now.minute}:{now.second}.txt"
 NUM_ALGORITHMS = 17
 ITERATIONS_HEAVY = [100, 1000, 10000, 50000, 100000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
 HEAVY_ALGS = [
-    11,  # Serial Pipeline
+    11, # Serial Pipeline
     15  # Hyperplane
 ]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
 REPETITIONS = 5
-
 
 # Functions -------------------------------------------------------------------------
 def file_write(file_buffer, value):
@@ -52,6 +50,7 @@ def run_test(alg_id, single_test_run, output_file, program):
         file_write(file_buffer, THREADS[x])
 
     for i in range(0, len(iterations)):
+        it_results = []
         for t in range(0, len(THREADS)):
             thread_results = []
             for r in range(0, REPETITIONS):
@@ -80,6 +79,7 @@ def run_test(alg_id, single_test_run, output_file, program):
                 print(f"Finished test {curr_test}/{total_tests}.")
 
         # Append mean time to execute for each thread count
+        results.append(it_results)
 
     # Write results to file
     output_file.writelines(file_buffer)
