@@ -7,7 +7,7 @@ import matplotlib.pyplot as pyplot
 import numpy
 
 # Constants
-NUM_ALGORITHMS = 15
+NUM_ALGORITHMS = 16
 ITERATIONS_HEAVY = [100, 1000, 10000, 50000, 100000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
 HEAVY_ALGS = [

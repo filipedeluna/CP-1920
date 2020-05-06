@@ -703,14 +703,12 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
   free(compMatrix);
 }
 
-size_t partition(int *arr, size_t pivot, size_t right) {
-  int newPivot = arr[right];
+long partition(int *arr, long pivot, long right) {
+  // Partition sliding window starts at pivot - 1
+  long wStart = pivot == 0 ? -1 : pivot - 1;
 
-  // Parition sliding window starts at pivot - 1
-  size_t wStart = pivot - 1;
-
-  for (size_t wFinish = pivot; wFinish < right - 1; wFinish++) {
-    if (arr[wFinish] < newPivot) {
+  for (long wFinish = pivot; wFinish < right - 1; wFinish++) {
+    if (arr[wFinish] <= arr[right]) {
       wStart++;
 
       int temp = arr[wStart];
@@ -720,17 +718,17 @@ size_t partition(int *arr, size_t pivot, size_t right) {
   }
 
   int temp = arr[wStart + 1];
-  arr[wStart] = arr[right];
+  arr[wStart + 1] = arr[right];
   arr[right] = temp;
 
   return wStart + 1;
 }
 
-void quickSortImpl(int *arr, size_t pivot, size_t right) {
+void quickSortImpl(int *arr, long pivot, long right) {
   if (pivot >= right)
     return;
 
-  size_t partitionPivot = partition(arr, pivot, right);
+  long partitionPivot = partition(arr, pivot, right);
 
   #pragma omp task default(none) shared(arr, pivot, partitionPivot)
   quickSortImpl(arr, pivot, partitionPivot - 1);
@@ -758,10 +756,9 @@ void quickSort(int *arr, size_t arrSize) {
 
   int nThreads = omp_get_max_threads();
 
-  #pragma omp parallel default(none) \
-  shared(arr, arrSize) num_threads(nThreads)
+  #pragma omp parallel default(none) shared(arr, arrSize) num_threads(nThreads)
   {
     #pragma omp single
-    quickSortImpl(arr, arrSize / 2, arrSize);
+    quickSortImpl(arr, 0, (long) arrSize - 1);
   }
 }
