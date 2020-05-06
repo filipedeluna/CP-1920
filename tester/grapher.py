@@ -1,22 +1,44 @@
 #!/usr/bin/env python3.7
 import os
 import sys
-import time
 
 import matplotlib.pyplot as pyplot
-import numpy
 
-def create_graph(results, test_name, iterations):
+
+def create_graph(image_dir):
+    # Read iterations length and number of iterations
+    iterations_length = int(input_file.readline())
+    iterations = []
+    for x in range(0, iterations_length):
+        iterations.append(int(input_file.readline()))
+
+    # Read threads length and number of iterations
+    threads_length = int(input_file.readline())
+    threads = []
+    for y in range(0, threads_length):
+        threads.append(int(input_file.readline()))
+
+    test_name = input_file.readline()
+
+    # Compute results into array
+    results = []
+
+    for it in range(0, iterations_length):
+        temp = []
+        for th in range(0, threads_length):
+            temp.append(float(input_file.readline()))
+        results.append(temp)
+
     # Data for plotting
     fig = pyplot.figure()
     ax = fig.add_subplot(111)
 
-    for i in range(0, len(iterations)):
-        ax.plot(THREADS, results[i], label=f"{iterations[i]} Iterations")
+    for z in range(0, len(iterations)):
+        ax.plot(threads, results[z], label=f"{iterations[z]} Iterations")
 
     ax.set_xscale("log", basex=2)
-    ax.set_xticks(THREADS)
-    ax.set_xticklabels(THREADS)
+    ax.set_xticks(threads)
+    ax.set_xticklabels(threads)
     ax.set_yscale("log")
 
     ax.set(xlabel='Number of Threads', ylabel='Time (microseconds)',
@@ -26,38 +48,45 @@ def create_graph(results, test_name, iterations):
     ax.legend(loc='upper right', fancybox=True, shadow=True, prop={'size': 6})
 
     # Crate directory if it does not exist and save graph file
-    if not os.path.isdir(IMAGE_DIRECTORY):
-        os.mkdir(IMAGE_DIRECTORY)
+    if not os.path.isdir(image_dir):
+        os.mkdir(image_dir)
 
-    fig.savefig(f"{IMAGE_DIRECTORY}/{test_name}-test.png")
+    fig.savefig(f"{image_dir}/{test_name}-test.png")
+
 
 # Handle args -------------------------------------------------------------------------
-algorithm_id = -1
-
-if len(sys.argv) > 2:
-    print("Too many arguments - expected test number or nothing for all tests")
+if len(sys.argv) != 3:
+    print("Invalid arguments - INPUT_FILE and OUTPUT_FOLDER.")
     sys.exit(-1)
 
-if len(sys.argv) == 2:
-    if len(sys.argv) == 2 and not sys.argv[1].isdecimal():
-        print("Expected test number - must be integer")
-        sys.exit(-1)
+if not os.path.isfile(sys.argv[1]):
+    print("Expected valid input file.")
+    sys.exit(-1)
 
-    algorithm_id = int(sys.argv[1])
+if not sys.argv[2].isalpha():
+    print("Expected output folder name.")
+    sys.exit(-1)
 
-    if algorithm_id < 1 or algorithm_id > NUM_ALGORITHMS:
-        print(f"Invalid test number. Please choose from 1 - {NUM_ALGORITHMS}")
-        sys.exit(-1)
+file_location = str(sys.argv[1])
+image_directory = str(sys.argv[2])
 
-# Start tests -------------------------------------------------------------------------
-start_time = time.time()
+input_file = ""
 
-# Run all algorithms or single
-if algorithm_id == -1:
-    for alg in range(1, NUM_ALGORITHMS + 1):
-        run_test(alg, False)
-else:
-    run_test(algorithm_id, True)
+try:
+    if not os.path.isdir(image_directory):
+        os.mkdir(image_directory)
 
-totalTime = round(time.time() - start_time)
-print(f"Tests completed successfully in {totalTime} seconds.")
+    input_file = open(file_location, 'r')
+except OSError as err:
+    print(f"Invalid output path - {err}.")
+    sys.exit(-1)
+
+# Create Graphs -------------------------------------------------------------------------
+testCount = int(input_file.readline())
+
+for i in range(0, testCount):
+    create_graph(image_directory)
+
+input_file.close()
+
+print(f"Graphs created successfully..")
