@@ -5,7 +5,6 @@
 #include <math.h>
 #include <omp.h>
 #include "patterns.h"
-#include <stdio.h>
 
 // Define treshold where it makes more sense to serialize code
 #define QS_TRESHOLD 250
@@ -319,7 +318,7 @@ void gather(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filte
   gatherImpl(dest, src, nJob, sizeJob, filter, nFilter, omp_get_max_threads());
 }
 
-void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) { //this scatter is atomic
+void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
   filteredAsserts(dest, src, nJob, sizeJob, filter);
 
   /*
@@ -329,43 +328,35 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   char *d = dest;
   char *s = src;
 
-  // Use quick sort to sort the filter positions
-  // quickSort(filter, nJob);
+  // Do a mirror of original array due to limitations in method signature
+  // By using quick sort to sort the filter positions and their respective
+  // values, we can guarantee atomicity of memcpy operations
+  int *filter2 = malloc(nJob * sizeof(int));
+  memcpy(filter2, filter, nJob * sizeof(int));
 
+  quickSort2(filter2, src, sizeJob, nJob);
 
-  // Boolean array to avoid race conditions
-  int *raceArray = calloc(nJob, sizeof(int));
-
-
-  #pragma omp parallel default(none) shared(filter, nJob, sizeJob, d, s, stderr, raceArray)
+  #pragma omp parallel default(none) shared(filter2, nJob, sizeJob, d, s, stderr)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
     // Alternative to assert
-    if ((size_t) filter[i] >= nJob) {
+    if ((size_t) filter2[i] >= nJob) {
       fprintf(stderr, "Invalid filter index in Scatter");
       exit(1);
     }
 
-    // Simulate a lock so operations occur atomically for a given position
-    int isRace;
-    #pragma omp atomic read
-    isRace = raceArray[i];
-
-    if (isRace) {
+    // If the next position is the same as the current, there will be a race
+    // condition in the memcpy, as it copies data block by block.
+    // This workaround allows us to simulate atomicity in memcpy
+    // with minimal O(NlogN) overhead from the quicksort
+    if (i < nJob - 1 && filter2[i] == filter2[i + 1]) {
       #pragma omp critical
-      for (size_t k = 0; k < sizeJob; k++)
-        d[filter[i] * sizeJob + k] = s[i * sizeJob + k];
-    } else {
-      #pragma omp atomic write
-      raceArray[i] = 1;
-
-      for (size_t k = 0; k < sizeJob; k++)
-        d[filter[i] * sizeJob + k] = s[i * sizeJob + k];
-
-      #pragma omp atomic write
-      raceArray[i] = 0;
-    }
+      memcpy(&d[filter2[i] * sizeJob], &s[i * sizeJob], sizeJob);
+    } else
+      memcpy(&d[filter2[i] * sizeJob], &s[i * sizeJob], sizeJob);
   }
+
+  free(filter2);
 }
 
 void priorityScatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filter) {
@@ -848,7 +839,8 @@ void quickSortImpl2(int *arr1, char *arr2, size_t sizeJob, long pivot, long righ
 
 void quickSort2(int *arr1, char *arr2, size_t sizeJob, size_t arrSize) {
   /*
-   * This quicksort implementation sorts an array and imitates its positions on the second one
+   * This quicksort implementation sorts an array and reflects its positions on the second one
+   * This second array can have objects of any type
   */
 
   assert(arr1 != NULL);
