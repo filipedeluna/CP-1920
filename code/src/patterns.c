@@ -7,6 +7,9 @@
 #include "patterns.h"
 #include <stdio.h>
 
+// Define treshold where it makes more sense to serialize code
+#define QS_TRESHOLD 250
+
 /*
  *  UTILS
 */
@@ -705,16 +708,18 @@ void hyperplane(void *dest, void *src, size_t nJob, size_t sizeJob, void (*worke
 
 long partition(int *arr, long pivot, long right) {
   // Partition sliding window starts at pivot - 1
-  long wStart = pivot == 0 ? -1 : pivot - 1;
+  long rValue = arr[right];
+  long wStart = pivot - 1;
 
-  for (long wFinish = pivot; wFinish < right - 1; wFinish++) {
-    if (arr[wFinish] <= arr[right]) {
-      wStart++;
+  for (long wFinish = pivot; wFinish <= right - 1; wFinish++) {
+    if (arr[wFinish] > rValue)
+      continue;
 
-      int temp = arr[wStart];
-      arr[wStart] = arr[wFinish];
-      arr[wFinish] = temp;
-    }
+    wStart++;
+
+    int temp = arr[wStart];
+    arr[wStart] = arr[wFinish];
+    arr[wFinish] = temp;
   }
 
   int temp = arr[wStart + 1];
@@ -730,13 +735,20 @@ void quickSortImpl(int *arr, long pivot, long right) {
 
   long partitionPivot = partition(arr, pivot, right);
 
-  #pragma omp task default(none) shared(arr, pivot, partitionPivot)
-  quickSortImpl(arr, pivot, partitionPivot - 1);
+  // Keep from making tasks when amount of work is low
+  if (right - pivot < QS_TRESHOLD) {
+    quickSortImpl(arr, pivot, partitionPivot - 1);
 
-  #pragma omp task default(none) shared(arr, pivot, partitionPivot, right)
-  quickSortImpl(arr, partitionPivot + 1, right);
+    quickSortImpl(arr, partitionPivot + 1, right);
+  } else {
+    #pragma omp task default(none) shared(arr, pivot, partitionPivot)
+    quickSortImpl(arr, pivot, partitionPivot - 1);
 
-  #pragma omp taskwait
+    #pragma omp task default(none) shared(arr, pivot, partitionPivot, right)
+    quickSortImpl(arr, partitionPivot + 1, right);
+
+    #pragma omp taskwait
+  }
 }
 
 void quickSort(int *arr, size_t arrSize) {
@@ -746,7 +758,7 @@ void quickSort(int *arr, size_t arrSize) {
    * cannot be compared simply by resorting to memcmp to compare bit by bit, we are forced
    * to adapt the casting. As it was needed for a parallel algortihm, we decided to resort
    * to the int implementation.
-   */
+  */
 
   assert(arr != NULL);
   assert(arrSize > 0);
