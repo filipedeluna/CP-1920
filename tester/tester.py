@@ -21,6 +21,7 @@ LIGHT_ALGS = [
 ]
 MED_ALGS = [
     7,  # Scatter
+    12, # Farm
 ]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
@@ -84,10 +85,7 @@ def run_test(alg_id, single_test_run, output_file, program):
             # Print progress
             curr_test = i * (len(THREADS)) + t + 1
 
-            if not single_test_run:
-                print(f"Finished test {curr_test}/{total_tests} of algorithm {alg_id}/{NUM_ALGORITHMS} - {test_name}.")
-            else:
-                print(f"Finished test {curr_test}/{total_tests}.")
+            print(f"Finished test {curr_test}/{total_tests} of algorithm {alg_id}/{NUM_ALGORITHMS} - {test_name}.")
 
         # Append mean time to execute for each thread count
         results.append(it_results)
