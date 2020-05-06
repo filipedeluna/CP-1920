@@ -463,9 +463,11 @@ void serialPipeline(void *dest, void *src, size_t nJob, size_t sizeJob, void (*w
       size_t currJob = i - j;
       size_t currOp = nWorkers - (nWorkers - j);
 
-      #pragma omp task default(none) shared(nJob, nWorkers, nThreads, workerList, j, s, d, i, currJob, currOp, sizeJob)
-      if (currJob < nJob)
-        workerList[currOp](&d[currJob * sizeJob], currOp == 0 ? &s[currJob * sizeJob] : &d[currJob * sizeJob]);
+      if (currJob >= nJob)
+        continue;
+
+      #pragma omp task default(none) shared(workerList, s, d, currJob, currOp, sizeJob)
+      workerList[currOp](&d[currJob * sizeJob], currOp == 0 ? &s[currJob * sizeJob] : &d[currJob * sizeJob]);
     }
   }
 }
