@@ -11,7 +11,7 @@ now = datetime.datetime.now()
 
 # Constants
 FILE_NAME = f"paralell_tests {now.day}-{now.month}-{now.year} {now.hour}:{now.minute}:{now.second}.txt"
-NUM_ALGORITHMS = 15
+NUM_ALGORITHMS = 17
 ITERATIONS_HEAVY = [100, 1000, 10000, 50000, 100000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
 HEAVY_ALGS = [
