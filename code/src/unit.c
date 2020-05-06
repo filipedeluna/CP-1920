@@ -3,19 +3,32 @@
 #include <time.h>
 #include <omp.h>
 #include "patterns.h"
+#include <errno.h>
 
 #include "debug.h"
 #include "args.h"
 
 #define FMT "%lf"
+#define SLEEP_AMOUNT_MICROSECS 1
 
 int WEIGHTED_MODE = 0;
 int ITERATIONS = 0;
 
-// Add a bit of weight to worker functions
-void addWeight() {
-  for (int i = 0; i < 1000; i++)
-    (void) i;
+// This allows workers to sleep to simulate work
+void sleepWeight() {
+  if (!WEIGHTED_MODE)
+    return;
+
+  struct timespec ts;
+
+  ts.tv_sec = SLEEP_AMOUNT_MICROSECS / 1e6;
+  ts.tv_nsec = SLEEP_AMOUNT_MICROSECS * 1000;
+
+  int check;
+
+  do {
+    check = nanosleep(&ts, &ts);
+  } while (check && errno == EINTR);
 }
 
 //=======================================================
@@ -44,8 +57,7 @@ static void workerAdd(void *a, const void *b, const void *c) {
   // a = b + c
   *(TYPE *) a = *(TYPE *) b + *(TYPE *) c;
 
-  if (WEIGHTED_MODE)
-    addWeight();
+  sleepWeight();
 }
 
 /*
@@ -53,8 +65,7 @@ static void workerSubtract(void* a, const void* b, const void* c) {
     // a = n - c
     *(TYPE *)a = *(TYPE *)b - *(TYPE *)c;
 
-    if (WEIGHTED_MODE)
-      addWeight();
+    sleepWeight();
 }
 */
 
@@ -63,8 +74,7 @@ static void workerMultiply(void* a, const void* b, const void* c) {
     // a = b * c
     *(TYPE *)a = *(TYPE *)b + *(TYPE *)c;
 
-    if (WEIGHTED_MODE)
-      addWeight();
+        sleepWeight();
 }
 */
 
@@ -72,32 +82,28 @@ static void workerAddOne(void *a, const void *b) {
   // a = b + 1
   *(TYPE *) a = *(TYPE *) b + 1;
 
-  if (WEIGHTED_MODE)
-    addWeight();
+  sleepWeight();
 }
 
 static void workerAccum(void *a, const void *b) {
   // a += b
   *(TYPE *) a += *(TYPE *) b;
 
-  if (WEIGHTED_MODE)
-    addWeight();
+  sleepWeight();
 }
 
 static void workerMultTwo(void *a, const void *b) {
   // a = b * 2
   *(TYPE *) a = *(TYPE *) b * 2;
 
-  if (WEIGHTED_MODE)
-    addWeight();
+  sleepWeight();
 }
 
 static void workerDivTwo(void *a, const void *b) {
   // a = b / 2
   *(TYPE *) a = *(TYPE *) b / 2;
 
-  if (WEIGHTED_MODE)
-    addWeight();
+  sleepWeight();
 }
 
 //=======================================================
@@ -209,7 +215,7 @@ double testGather(void *src, size_t n, size_t size) {
 }
 
 double testScatter(void *src, size_t n, size_t size) {
-  int nDest = 6;
+  int nDest = 10;
 
   TYPE *dest = malloc(nDest * size);
 

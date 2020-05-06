@@ -7,7 +7,7 @@
 #include "patterns.h"
 
 // Define treshold where it makes more sense to serialize code
-#define QS_TRESHOLD 250
+#define QS_TRESHOLD 1000
 
 /*
  *  UTILS

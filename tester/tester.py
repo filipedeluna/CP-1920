@@ -11,15 +11,23 @@ now = datetime.datetime.now()
 
 # Constants
 NUM_ALGORITHMS = 17
-ITERATIONS_HEAVY = [100, 1000, 10000, 50000, 100000]
+ITERATIONS_HEAVY = [10000, 50000, 100000, 500000, 1000000]
+ITERATIONS_MED = [500, 1000, 5000, 10000, 50000]
 ITERATIONS_LIGHT = [50, 100, 500, 1000, 5000]
-HEAVY_ALGS = [
+
+LIGHT_ALGS = [
     11, # Serial Pipeline
     15  # Hyperplane
+]
+MED_ALGS = [
+    7,  # Scatter
 ]
 
 THREADS = [1, 2, 4, 8, 16, 32, 64, 128]
 REPETITIONS = 5
+
+FILE_NAME = f"paralell_tests {now.day}-{now.month}-{now.year} {now.hour}:{now.minute}:{now.second}.txt"
+
 
 # Functions -------------------------------------------------------------------------
 def file_write(file_buffer, value):
@@ -35,8 +43,11 @@ def run_test(alg_id, single_test_run, output_file, program):
     iterations = ITERATIONS_HEAVY
 
     # Check if test is heavy, if so, set lighter iterations
-    if alg_id in HEAVY_ALGS:
+    if alg_id in LIGHT_ALGS:
         iterations = ITERATIONS_LIGHT
+
+    if alg_id in MED_ALGS:
+        iterations = ITERATIONS_MED
 
     total_tests = len(iterations) * len(THREADS)
 
@@ -55,7 +66,7 @@ def run_test(alg_id, single_test_run, output_file, program):
             thread_results = []
             for r in range(0, REPETITIONS):
                 # Run and extract result from program
-                stream = os.popen(f"{program} -i {iterations[i]} -w -k {alg_id} -t {THREADS[t]}")
+                stream = os.popen(f"{program} -i {iterations[i]} -k {alg_id} -t {THREADS[t]}")
                 output = stream.read().split("Done!\n\n")
 
                 # Extract time from program output
