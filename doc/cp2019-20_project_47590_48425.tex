@@ -1,4 +1,4 @@
-\documentclass[10pt,journal,compsoc]{IEEEtran}
+\documentclass[9pt,journal]{IEEEtran}
 
 \ifCLASSOPTIONcompsoc
   % IEEE Computer Society needs nocompress option
@@ -44,80 +44,54 @@
 \title{Project 1 -- Parallel Patterns with C and OpenMP}
 
 
-\author{Filipe~de Luna,~\IEEEmembership{48425} and
+\author{
+	{
+		Filipe~de Luna,~\IEEEmembership{48425} and
         Gabriel Batista,~\IEEEmembership{47590}
+    } \\ Department of Informatics - FCT-NOVA
+        
 }
 
 \markboth{Concurrency and Parallelism - DI FCT-UNL, 2019-2020}%
 {Concurrency and Parallelism - DI FCT-UNL, 2019-2020}
 
-\IEEEtitleabstractindextext{%
-\begin{abstract}
-The abstract goes here.
-\end{abstract}
-
-% Note that keywords are not normally used for peerreview papers.
-\begin{IEEEkeywords}
-Computer Society, IEEE, IEEEtran, journal, \LaTeX, paper, template.
-\end{IEEEkeywords}}
-
-
 % make the title area
 \maketitle
 
+\section{Introduction}
+For the Concurrency and Parallelism course of the Integrated Masters in Computer Science at FCT-NOVA, we were asked to implement a series of parallel patterns using the OpenMP API. The following document describes our implementation of these patterns, the results we’ve achieved during the testing phase and our interpretation of these same results.
 
-\IEEEdisplaynontitleabstractindextext
-% \IEEEdisplaynontitleabstractindextext has no 
-\IEEEpeerreviewmaketitle
+\section{Tools}
 
-\IEEEraisesectionheading{\section{Introduction}\label{sec:introduction}}
+We developed the project in Linux using C language and the GCC compiler, writing our code in Clion and using CMake for building. We used the standard GNU argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
 
-\IEEEPARstart{I}{ntroduction} text here.
-% You must have at least 2 lines in the paragraph with the drop letter
-% (should never be an issue)
-I wish you the best of success.
+Our most important tool was OpenMP \cite{omp}, a multiplatform API that allows the user to add pragmas to programming blocks in order to parallelize code. The main perk of OpenMP is that parallel code ends up looking extremely similar to serial code, meaning serial execution is still possible.
 
-\subsection{Subsection Heading Here}
-Subsection text here.
+\section{Testing Methodology}
 
-% needed in second column of first page if using \IEEEpubid
-%\IEEEpubidadjcol
+We have created two python scripts to aid us in testing.
 
-\subsubsection{Subsubsection Heading Here}
-Subsubsection text here.
+The first script, named “tester”, runs the program several times with the appropriate flags and saves the results. The tester can be configured to run a specific algorithm or all with a set of iterations, number of threads and, lastly, the number of repetitions for every test/iterations/thread combo. From these repetitions, we extract a mean value for a more accurate result. All these results are written to a file of our choosing.
 
+The tester also allowed for configuring tests to run with different sets of iterations, since some algorithms run a lot faster than others and we needed to keep overall testing times low.  Another parameter, was “weight”, which activated a flag in the program that added a for loop with a configurable number of iterations for every worker. This was necessary since some algorithms had a very significant management cost and it allowed us to simulate a heavier work load in order to visualize their gains more accurately.
 
-\section{Conclusion}
-The conclusion goes here.
+The second python script, the “grapher”, reads the output file with the results and creates a graph for each test, using Matplotlib \cite{matplotlib}, in order to help us visualize the data. 
 
-\appendices
-\section{Proof of the First Zonklar Equation}
-Appendix one text goes here.
+Since our computers had a limited core count, we couldn’t get a realistic perception of the gains that the parallelization of these patterns could allow for. So we ran our tests in the cluster maintained by our Faculty’s Department of Informatics. The particular node we used for tests had 64 cores.
 
-% you can choose not to have a title for an appendix
-% if you want by leaving the argument blank
-\section{}
-Appendix two text goes here.
+\section{Mandatory Parallel Patterns}
 
+\section{Extra Parallel Patterns}
 
-% use section* for acknowledgment
-\ifCLASSOPTIONcompsoc
-  % The Computer Society usually uses the plural form
-  \section*{Acknowledgments}
-\else
-  % regular IEEE prefers the singular form
-  \section*{Acknowledgment}
-\fi
-
-
-The authors would like to thank...
-
-\ifCLASSOPTIONcaptionsoff
-  \newpage
-\fi
+\section{Acknowledgments}
 
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEabrv,biblio}{}
+
+\section{Work Division}
+
+\section{Comments}
+
 
 % that's all folks
 \end{document}
