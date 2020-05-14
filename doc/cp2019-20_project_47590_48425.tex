@@ -61,7 +61,7 @@
 \section{Introduction}
 For the Concurrency and Parallelism course of the Integrated Masters in Computer Science at FCT-NOVA, we were asked to implement a series of parallel patterns using the OpenMP API. The following document describes our implementation of these patterns, the results we’ve achieved during the testing phase and our interpretation of these same results.
 
-\section{Tools}
+\section{Tools Used}
 
 We developed the project in Linux using C language and the GCC compiler, writing our code in Clion and using CMake for building. We used the standard GNU argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
 
@@ -79,7 +79,33 @@ The second python script, the “grapher”, reads the output file with the resu
 
 Since our computers had a limited core count, we couldn’t get a realistic perception of the gains that the parallelization of these patterns could allow for. So we ran our tests in the cluster maintained by our Faculty’s Department of Informatics. The particular node we used for tests had 64 cores.
 
+To get realistic results for each thread count, we disabled OpenMP's default dynamic scheduling and forced it to static. This means that the number of threads we specified will actually be used, instead of OpenMP dynamically optimizing the thread count for the given workload. Even though this might result in worse results and isn't suitable for a real live application, it is ideal to obtain the accurate results we need for our tests.
+
 \section{Mandatory Parallel Patterns}
+% Map
+\subsection{The Map Pattern}
+\subsubsection{Implementation}
+
+The Map pattern was the simplest and most straightforward to implement since we can use OpenMP's for construct to map n jobs to a for loop with n iterations. This for loop will then be proportionally sliced with each thread receiving a similar slice. Since there are no dependencies between jobs or a necessary order of execution, this algorithm becomes embarrassingly parallelizeable \cite{mccool}.
+
+\subsubsection{Testing}
+With 10.000 iterations, the algorithm showed a linear speedup up to 4 cores, with the speedup severely lowering when 8 were used. With upwards of 8 cores, we saw similarly linear negative speedup, since the management cost for the creation of these threads was more than the time the threads actually ran their work. Only at 500.000 iterations did the algorithm start showing the expected linear speedup by increasing threads up to the physical core count of the machine.
+	
+% Reduce	
+\subsection{The Reduce Pattern}
+\subsubsection{Implementation}
+Although OpenMP includes a reduction construct and can efficiently parallelize reductions, this only works for scalar values and arithmetic operations \cite{ompreduct}. Since we want to create a generic reduction, allowing for any type of values, we had to implement a custom reduction algorithm. The algorithm was based on the one found McCool's book, using a 2-phase reduction \cite{mccool}. In the first phase, each thread gets a similar portion of the total work and reduces it (much like a map), and in the second phase, those results are reduced serially. 
+
+\subsubsection{Testing}
+As expected, this algorithm showed results very similar to the ones from the map, as it behaved very similarly to one. Since the second phase only has a maximum of jobs equal to the number of threads, it does not scale significantly and shouldn't affect the gains much, even though it is executed serially.
+
+% Scan	
+\subsection{The Scan Pattern}
+\subsubsection{Implementation}
+Although OpenMP includes a reduction construct and can efficiently parallelize reductions, this only works for scalar values and arithmetic operations \cite{ompreduct}. Since we want to create a generic reduction, allowing for any type of values, we had to implement a custom reduction algorithm. The algorithm was based on the one found McCool's book, using a 2-phase reduction \cite{mccool}. In the first phase, each thread gets a similar portion of the total work and reduces it (much like a map), and in the second phase, those results are reduced serially. 
+
+\subsubsection{Testing}
+As expected, this algorithm showed results very similar to the ones from the map, as it behaved very similarly to one. Since the second phase only has a maximum of jobs equal to the number of threads, it does not scale significantly and shouldn't affect the gains much, even though it is executed serially.
 
 \section{Extra Parallel Patterns}
 
@@ -93,7 +119,6 @@ Since our computers had a limited core count, we couldn’t get a realistic perc
 \section{Comments}
 
 
-% that's all folks
 \end{document}
 
 
