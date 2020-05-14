@@ -16,8 +16,9 @@ int ITERATIONS = 0;
 
 // This allows workers to simulate work
 void addWeight() {
-  for (int i = 0; i < SLEEP_WEIGHT; i++)
-    (void) i;
+  if (WEIGHTED_MODE)
+    for (int i = 0; i < SLEEP_WEIGHT; i++)
+      (void) i;
 }
 
 //=======================================================
