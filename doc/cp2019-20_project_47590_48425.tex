@@ -59,13 +59,13 @@
 \maketitle
 
 \section{Introduction}
-For the Concurrency and Parallelism course of the Integrated Masters in Computer Science at FCT-NOVA, we were asked to implement a series of parallel patterns using the OpenMP API. The following document describes our implementation of these patterns, the results we’ve achieved during the testing phase and our interpretation of these same results.
+For the Concurrency and Parallelism course of the Integrated Masters in Computer Science at FCT-NOVA, we were asked to implement a series of parallel patterns using the \textit{OpenMP} API. The following document describes our implementation of these patterns, the results we’ve achieved during the testing phase and our interpretation of these same results.
 
 \section{Tools Used}
 
-We developed the project in Linux using C language and the GCC compiler, writing our code in Clion and using CMake for building. We used the standard GNU argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
+We developed the project in \textit{Linux} using \textit{C} language and the \textit{GCC} compiler, writing our code in Clion and using \textit{CMake} for building. We used the standard \textit{GNU} argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
 
-Our most important tool was OpenMP \cite{omp}, a multiplatform API that allows the user to add pragmas to programming blocks in order to parallelize code. The main perk of OpenMP is that parallel code ends up looking extremely similar to serial code, meaning serial execution is still possible.
+Our most important tool was \textit{OpenMP} \cite{omp}, a multiplatform API that allows the user to add pragmas to programming blocks in order to parallelize code. The main perk of \textit{OpenMP} is that parallel code ends up looking extremely similar to serial code, meaning serial execution is still possible.
 
 \section{Testing Methodology}
 
@@ -75,24 +75,25 @@ The first script, named “tester”, runs the program several times with the ap
 
 The tester also allowed for configuring tests to run with different sets of numbers of jobs, since some algorithms run a lot faster than others and we needed to keep overall testing times low.  Another parameter, was “weight”, which activated a flag in the program that added a for loop with a configurable number of iterations for every worker. Ideally, we would increase the number of total jobs, but this wasn't really viable as the worker was really light and for the number of needed jobs, it would result in running out of RAM. This was necessary since some algorithms had a very significant management cost and it allowed us to simulate a heavier work load in order to visualize their gains more accurately. 
 
-The second python script, the “grapher”, reads the output file with the results and creates a graph for each test, using Matplotlib \cite{matplotlib}, in order to help us visualize the data. 
+The second python script, the “grapher”, reads the output file with the results and creates a graph for each test, using \textit{Matplotlib} \cite{matplotlib}, in order to help us visualize the data. 
 
 Since our computers had a limited core count, we couldn’t get a realistic perception of the gains that the parallelization of these patterns could allow for. So we ran our tests in the cluster maintained by our Faculty’s Department of Informatics. The particular node we used for tests had 64 cores.
 
 After inspecting the profiler results in the 16 thread CPU, we noticed that the added weight resulted in a very significant reduction of the percentage of time spent in creating the threads. So we decided to run all tests with an added weight of 250 for iterations on the cluster.
 
-For profiling we ran the CLion profiler on a machine with 16 threads (8 physical + 8 logical). Profiling was incredibly useful to get an idea of how much the management cost was, and how much time was spent doing serial work.
+For profiling we ran the \textit{CLion} profiler on a machine with 16 threads (8 physical + 8 logical). Profiling was incredibly useful to get an idea of how much the management cost was, and how much time was spent doing serial work.
 
-To get realistic results for each thread count, we disabled OpenMP's default dynamic scheduling and forced it to static. This means that the number of threads we specified will actually be used, instead of OpenMP dynamically optimizing the thread count for the given workload. Even though this might result in worse results and isn't suitable for a real live application, it is ideal to obtain the accurate results we need for our tests.
+To get realistic results for each thread count, we disabled \textit{OpenMP's} default dynamic scheduling and forced it to static. This means that the number of threads we specified will actually be used, instead of \textit{OpenMP} dynamically optimizing the thread count for the given workload. Even though this might result in worse results and isn't suitable for a real live application, it is ideal to obtain the accurate results we need for our tests.
 
 \section{Mandatory Parallel Patterns}
-% Map
+
+% Map --------------------------------------------------------------	
 \subsection{The Map Pattern}
 \label{map}
 
 \subsubsection{Implementation}
 
-The Map pattern was the simplest and most straightforward to implement since we can use OpenMP's for construct to map n jobs to a for loop with n iterations. This for loop will then be proportionally sliced with each thread receiving a similar slice. Since there are no dependencies between jobs or a necessary order of execution, this algorithm becomes embarrassingly parallelizeable \cite{mccool}.
+The Map pattern was the simplest and most straightforward to implement since we can use \textit{OpenMP's} for construct to map $ n $ jobs to a for loop with n iterations. This for loop will then be proportionally sliced with each thread receiving a similar slice. Since there are no dependencies between jobs or a necessary order of execution, this algorithm becomes embarrassingly parallelizeable \cite{mccool}.
 
 \subsubsection{Testing}
 
@@ -100,13 +101,13 @@ With 10.000 jobs, the algorithm showed a linear speedup up to 4 cores, with the 
 
 With an added weight of 1000 for iterations and 16 threads on 10.000.000 jobs, it's possible to observe, in the profiler, that the program spends ~93\% of the time running in parallel. By removing the added weight, we end up with ~68\% of time running in parallel. It's easy to conclude that the necessary workload per job for the pattern to become viable is not that big, as a for with 1000 iterations is an extremely fast computation in a modern chip.
 
-% Reduce	
+% Reduce --------------------------------------------------------------		
 \subsection{The Reduce Pattern}
 \label{reduce}
 
 \subsubsection{Implementation}
 
-Although OpenMP includes a reduction construct and can efficiently parallelize reductions, this only works for scalar values and arithmetic operations \cite{ompreduct}. Since we want to create a generic reduction, allowing for any type of values, we had to implement a custom reduction algorithm. The algorithm was based on the one found McCool's book, using a 2-phase reduction \cite{mccool}. In the first phase, each thread gets a similar portion of the total work and reduces it (much like a map), and in the second phase, those results are reduced serially. 
+Although \textit{OpenMP} includes a reduction construct and can efficiently parallelize reductions, this only works for scalar values and arithmetic operations \cite{ompreduct}. Since we want to create a generic reduction, allowing for any type of values, we had to implement a custom reduction algorithm. The algorithm was based on the one found McCool's book, using a 2-phase reduction \cite{mccool}. In the first phase, each thread gets a similar portion of the total work and reduces it (much like a map), and in the second phase, those results are reduced serially. 
 
 \subsubsection{Testing}
 
@@ -114,25 +115,47 @@ As expected, this algorithm showed results very similar to the ones from the map
 
 Since the computational weight of the serial computation is not significant, as mentioned earlier, the profiling showed similar results to map (\ref{map}).
 
-% Scan	
+% Scan --------------------------------------------------------------		
 \subsection{The Scan Pattern}
 \subsubsection{Implementation}
 
 The scan pattern was the most complicated to implement of all the mandatory algorithms. There were many possibilities but we eventually decided on the inclusive three-phase algorithm shown on McCool's book on chapter 5.5 \cite{mccool}. The first two-phases are almost identical to the reduce pattern mentioned earlier in reduce (\ref{reduce}), with the third one using their result of the first value of each slice to compute the following values. Like in reduce, the second phase is serial and has as many computations as the amount of threads executing the algorithm. 
 
-An exclusive scan was created which was just a call to this function where the destiny array had an offset of 1, as the first value is always 0, and the resulting number of jobs decremented by one.
+An exclusive scan was created which was just a call to this function which basically does an inclusive scan with an offset of 1, so the first value is 0.
 
 \subsubsection{Testing}
 
 The scan did not show improvements from switching from 1 to 2 threads in every number of jobs, with the added management costs being higher than the gains up to 1.000.000 jobs (the maximum we've tested). But from upward of 2 threads, the gains were linear up to 32 threads, with very small improvement from 32 to 64 threads. 
 
-The reason behind the performance being equal or worse with two threads is due to the fact that this implementation uses n threads - 1 for the first cycle and the second cycle is serial. This means that, with 2 threads, 2 out of 3 phases are executed serially, with the added management cost not making it worth the extra parallelism in the last phase.
+The reason behind the performance being equal or worse with two threads is due to the fact that this implementation uses $ n - 1 $ threads for the first cycle and the second cycle is serial. This means that, with 2 threads, 2 out of 3 phases are executed serially, with the added management cost not making it worth the extra parallelism in the last phase.
 
 Again, similarly to reduce (\ref{reduce}), the profiling showed similar results to map (\ref{map}). With the expected parallelism with 2 threads, as mentioned in the last paragraph, resulting in only ~33\%. We conclude this algorithm is not a good solution for very low thread counts.
 
-% Pack	
+The scan was actually one of the algorithms that ended up showing better results with a higher thread count than the physical cores on the machine. This a phenomenon McCool describes as "Parallel Slack" \cite{mccool}, which ends up giving more flexibility to \textit{OpenMP}, as it can better distribute these chunks of jobs per threads as it sees fit. If there were a many chunks as threads, one hanging thread would hang the entire program.
+
+% Pack -------------------------------------------------------------	
 \subsection{The Pack Pattern}
 \subsubsection{Implementation}
+
+Even though we studied McCool's pack chapters from the book, most of our ideas for pack came from his article on \textit{Dr. Dobb's} on pack \cite{dobbpack}. The main idea is that pack is not a fundamental pattern, meaning it can be implemented by combining others. 
+
+We chose to do an exclusive scan on the filter so that the resulting array would give us the correct position in the destiny array for each item of the source array that is allowed in the filter. We then run a map on the source array, and for each position we check if it is allowed in the filter and, if so, we send it to the position given by the scanned filter array.
+
+\subsubsection{Testing}
+
+The pack results seem, at first, really odd as it gets worse performance as the core count grows up to around 500.000 jobs. And, even between 500.000 and 1.000.000 jobs, it shows a linear speed up from 2 to 8 cores and then it starts showing a linear negative speedup.
+
+On closer inspection, we notice that pack does not use a worker, but a \textit{memcpy} instruction that is only executed $ n / 2 $ times, with $ n $ being the number of jobs. This means that not only is this job not affected by the weight, but also has a lot lighter computations. Even though it uses a scan, the worker used for the scan is custom and does not include weight.
+
+This results in a lot faster computation, making the algorithm finish much faster than the others for the same number of jobs. And, this also means that even though it shows a good parallelization percentage with upwards of 80\% in the profiler, it does not spend enough time running to make up for the management cost of a high number of threads. Since it becomes impossible to increase the number of iterations due to RAM limitations, we can only "guess" that it would need a more demanding workload of 10.000.000+ jobs to start showing a linear speedup up to the number of threads of cluster.
+
+% Gather --------------------------------------------------------------	
+\subsection{The Gather Pattern}
+\subsubsection{Implementation}
+
+
+
+
 
 Even though we studied McCool's pack chapters from the book, most of our ideas for pack came from his article on DrDobb's on pack \cite{dobbpack}. The main idea is that pack is not a fundamental pattern, meaning it can be implemented by combining others. 
 
