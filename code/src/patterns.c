@@ -334,9 +334,11 @@ void scatter(void *dest, void *src, size_t nJob, size_t sizeJob, const int *filt
   int *filter2 = malloc(nJob * sizeof(int));
   memcpy(filter2, filter, nJob * sizeof(int));
 
+  int nThreads = omp_get_max_threads();
+
   quickSort2(filter2, src, sizeJob, nJob);
 
-  #pragma omp parallel default(none) shared(filter2, nJob, sizeJob, d, s, stderr)
+  #pragma omp parallel default(none) shared(filter2, nJob, sizeJob, d, s, stderr) num_threads(nThreads)
   #pragma omp for schedule(static)
   for (size_t i = 0; i < nJob; i++) {
     // Alternative to assert
