@@ -136,12 +136,15 @@ The scan was actually one of the algorithms that ended up showing better results
 % Pack -------------------------------------------------------------	
 \subsection{The Pack Pattern}
 \subsubsection{Implementation}
+\label{pack}
 
 Even though we studied McCool's pack chapters from the book, most of our ideas for pack came from his article on \textit{Dr. Dobb's} on pack \cite{dobbpack}. The main idea is that pack is not a fundamental pattern, meaning it can be implemented by combining others. 
 
 We chose to do an exclusive scan on the filter so that the resulting array would give us the correct position in the destiny array for each item of the source array that is allowed in the filter. We then run a map on the source array, and for each position we check if it is allowed in the filter and, if so, we send it to the position given by the scanned filter array.
 
 \subsubsection{Testing}
+
+To test pack, we created a filter array with the same size as the number of jobs. This array had alternating ones and zeros.
 
 The pack results seem, at first, really odd as it gets worse performance as the core count grows up to around 500.000 jobs. And, even between 500.000 and 1.000.000 jobs, it shows a linear speed up from 2 to 8 cores and then it starts showing a linear negative speedup.
 
@@ -153,15 +156,11 @@ This results in a lot faster computation, making the algorithm finish much faste
 \subsection{The Gather Pattern}
 \subsubsection{Implementation}
 
-
-
-
-
-Even though we studied McCool's pack chapters from the book, most of our ideas for pack came from his article on DrDobb's on pack \cite{dobbpack}. The main idea is that pack is not a fundamental pattern, meaning it can be implemented by combining others. 
-
-We chose to do an exclusive scan on the filter so that the resulting array would give us the correct position in the destiny array for each item of the source array that is allowed in the filter. We then run a map on the source array, and for each position we check if it is allowed in the filter and, if so, we send it to the position given by the scanned filter array.
+Gather's implementation was very similar to pack's (\ref{pack}), with a \textit{memcpy} instruction and a map. The gather was based on the idea's in \textit{Dr. Dobb's} that a gather is parallel read of elements of memory that subsequently writes said values to another array according to a filter. This filter holds the position in the source array of the element to write for each position, with each index $ i $ of the filter mapping to the same index $ i $ of the destiny array.
 
 \subsubsection{Testing}
+
+For testing, we created a filter with the same size as there were jobs and populated it with random integers that could be anywhere between 0 and $ n - 1 $, with n being the number of jobs.
 
 The pack results seem, at first, really odd as it gets worse performance as the core count grows up to around 500.000 jobs. And, even between 500.000 and 1.000.000 jobs, it shows a linear speed up from 2 to 8 cores and then it starts showing a linear negative speedup.
 
