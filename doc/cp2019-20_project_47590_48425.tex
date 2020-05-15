@@ -118,15 +118,17 @@ Since the computational weight of the serial computation is not significant, as 
 \subsection{The Scan Pattern}
 \subsubsection{Implementation}
 
-The scan pattern was the most complicated to implement of all the mandatory algorithms. There were many possibilities but we eventually decided on the inclusive three-phase algorithm shown on McCool's book on chapter 5.5 \cite{mccool}. The first two-phases are almost identical to the reduce pattern mentioned in reduce (\ref{reduce}), with the third one using their result of the first value of each slice to compute the following values. Like in reduce, the second phase is serial and has as many computations as the amount of threads executing the algorithm. 
+The scan pattern was the most complicated to implement of all the mandatory algorithms. There were many possibilities but we eventually decided on the inclusive three-phase algorithm shown on McCool's book on chapter 5.5 \cite{mccool}. The first two-phases are almost identical to the reduce pattern mentioned earlier in reduce (\ref{reduce}), with the third one using their result of the first value of each slice to compute the following values. Like in reduce, the second phase is serial and has as many computations as the amount of threads executing the algorithm. 
 
 An exclusive scan was created which was just a call to this function where the destiny array had an offset of 1, as the first value is always 0, and the resulting number of jobs decremented by one.
 
 \subsubsection{Testing}
 
-The scan did not show improvements from switching from 1 to 2 threads in every number of jobs, with the added management costs being higher than the gains up to 1.000.000 jobs (the maximum we've tested). But from upward of 2 threads, the gains were linear up to 32 threads, with very small improvement from 32 to 64 threads.
+The scan did not show improvements from switching from 1 to 2 threads in every number of jobs, with the added management costs being higher than the gains up to 1.000.000 jobs (the maximum we've tested). But from upward of 2 threads, the gains were linear up to 32 threads, with very small improvement from 32 to 64 threads. 
 
-Again, similarly to reduce (\ref{reduce}), the profiling showed similar results to map (\ref{map}).
+The reason behind the performance being equal or worse with two threads is due to the fact that this implementation uses n threads - 1 for the first cycle and the second cycle is serial. This means that, with 2 threads, 2 out of 3 phases are executed serially, with the added management cost not making it worth the extra parallelism in the last phase.
+
+Again, similarly to reduce (\ref{reduce}), the profiling showed similar results to map (\ref{map}). With the expected parallelism with 2 threads, as mentioned in the last paragraph, resulting in only ~33\%. We conclude this algorithm is not a good solution for very low thread counts.
 
 \section{Extra Parallel Patterns}
 
