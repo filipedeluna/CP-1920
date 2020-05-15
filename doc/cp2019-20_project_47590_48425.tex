@@ -71,15 +71,15 @@ Our most important tool was OpenMP \cite{omp}, a multiplatform API that allows t
 
 We have created two python scripts to aid us in testing.
 
-The first script, named “tester”, runs the program several times with the appropriate flags and saves the results. The tester can be configured to run a specific algorithm or all with a set of iterations, number of threads and, lastly, the number of repetitions for every test/iterations/thread combo. From these repetitions, we extract a mean value for a more accurate result. All these results are written to a file of our choosing.
+The first script, named “tester”, runs the program several times with the appropriate flags and saves the results. The tester can be configured to run a specific algorithm or all with a set of numbers of jobs, number of threads and, lastly, the number of repetitions for every test/number of jobs/thread combo. From these repetitions, we extract a mean value for a more accurate result. All these results are written to a file of our choosing.
 
-The tester also allowed for configuring tests to run with different sets of iterations, since some algorithms run a lot faster than others and we needed to keep overall testing times low.  Another parameter, was “weight”, which activated a flag in the program that added a for loop with a configurable number of iterations for every worker. Ideally, we would increase the number of total iterations, but this wasn't really viable as the worker was really light and for the number of needed iterations would result in running out of RAM. This was necessary since some algorithms had a very significant management cost and it allowed us to simulate a heavier work load in order to visualize their gains more accurately. 
+The tester also allowed for configuring tests to run with different sets of numbers of jobs, since some algorithms run a lot faster than others and we needed to keep overall testing times low.  Another parameter, was “weight”, which activated a flag in the program that added a for loop with a configurable number of iterations for every worker. Ideally, we would increase the number of total jobs, but this wasn't really viable as the worker was really light and for the number of needed jobs, it would result in running out of RAM. This was necessary since some algorithms had a very significant management cost and it allowed us to simulate a heavier work load in order to visualize their gains more accurately. 
 
 The second python script, the “grapher”, reads the output file with the results and creates a graph for each test, using Matplotlib \cite{matplotlib}, in order to help us visualize the data. 
 
 Since our computers had a limited core count, we couldn’t get a realistic perception of the gains that the parallelization of these patterns could allow for. So we ran our tests in the cluster maintained by our Faculty’s Department of Informatics. The particular node we used for tests had 64 cores.
 
-After inspecting the profiler results in the 16 thread CPU, we noticed that the added weight resulted in a very significant reduction of the percentage of time spent in creating the threads. So we decided to run all tests with the added weight on the cluster.
+After inspecting the profiler results in the 16 thread CPU, we noticed that the added weight resulted in a very significant reduction of the percentage of time spent in creating the threads. So we decided to run all tests with an added weight of 250 for iterations on the cluster.
 
 For profiling we ran the CLion profiler on a machine with 16 threads (8 physical + 8 logical). Profiling was incredibly useful to get an idea of how much the management cost was, and how much time was spent doing serial work.
 
@@ -88,34 +88,45 @@ To get realistic results for each thread count, we disabled OpenMP's default dyn
 \section{Mandatory Parallel Patterns}
 % Map
 \subsection{The Map Pattern}
+\label{map}
+
 \subsubsection{Implementation}
 
 The Map pattern was the simplest and most straightforward to implement since we can use OpenMP's for construct to map n jobs to a for loop with n iterations. This for loop will then be proportionally sliced with each thread receiving a similar slice. Since there are no dependencies between jobs or a necessary order of execution, this algorithm becomes embarrassingly parallelizeable \cite{mccool}.
 
 \subsubsection{Testing}
-With 10.000 iterations, the algorithm showed a linear speedup up to 4 cores, with the speedup severely lowering when 8 were used. With upwards of 8 cores, we saw similarly linear negative speedup, since the management cost for the creation of these threads was more than the time the threads actually ran their work. Only at 500.000 iterations did the algorithm start showing the expected linear speedup by increasing threads up to the physical core count of the machine.
 
-After adding the weight, with 10.000.000 iterations on the 16-thread CPU we could check on the profiler time spent in management drop from ~95\% to ~65\%. This means the management cost is still very significant even with the added weight.
-	
+With 10.000 jobs, the algorithm showed a linear speedup up to 4 cores, with the speedup severely lowering when 8 were used. With upwards of 8 cores, we saw similarly linear negative speedup, since the management cost for the creation of these threads was more than the time the threads actually ran their work. Only at 500.000 jobs did the algorithm start showing the expected linear speedup by increasing threads up to the physical core count of the machine.
+
+With an added weight of 1000 for iterations and 16 threads on 10.000.000 jobs, it's possible to observe, in the profiler, that the program spends ~93\% of the time running in parallel. By removing the added weight, we end up with ~68\% of time running in parallel. It's easy to conclude that the necessary workload per job for the pattern to become viable is not that big, as a for with 1000 iterations is an extremely fast computation in a modern chip.
+
 % Reduce	
 \subsection{The Reduce Pattern}
 \label{reduce}
 
 \subsubsection{Implementation}
+
 Although OpenMP includes a reduction construct and can efficiently parallelize reductions, this only works for scalar values and arithmetic operations \cite{ompreduct}. Since we want to create a generic reduction, allowing for any type of values, we had to implement a custom reduction algorithm. The algorithm was based on the one found McCool's book, using a 2-phase reduction \cite{mccool}. In the first phase, each thread gets a similar portion of the total work and reduces it (much like a map), and in the second phase, those results are reduced serially. 
 
 \subsubsection{Testing}
+
 As expected, this algorithm showed results very similar to the ones from the map, as it behaved very similarly to one. Since the second phase only has a maximum of jobs equal to the number of threads, it does not scale significantly and shouldn't affect the gains much, even though it is executed serially.
+
+Since the computational weight of the serial computation is not significant, as mentioned earlier, the profiling showed similar results to map (\ref{map}).
 
 % Scan	
 \subsection{The Scan Pattern}
 \subsubsection{Implementation}
-The scan pattern was the most complicated to implement of all the mandatory algorithms. There were many possibilities but we eventually decided on the inclusive three-phase algorithm shown on McCool's book on chapter 5.5 \cite{mccool}. The first two-phases are almost identical to the reduce pattern mentioned in \ref{reduce}, with the third one using their result of the first value of each slice to compute the following values. Like in reduce, the second phase is serial and has as many computations as the amount of threads executing the algorithm. 
+
+The scan pattern was the most complicated to implement of all the mandatory algorithms. There were many possibilities but we eventually decided on the inclusive three-phase algorithm shown on McCool's book on chapter 5.5 \cite{mccool}. The first two-phases are almost identical to the reduce pattern mentioned in reduce (\ref{reduce}), with the third one using their result of the first value of each slice to compute the following values. Like in reduce, the second phase is serial and has as many computations as the amount of threads executing the algorithm. 
 
 An exclusive scan was created which was just a call to this function where the destiny array had an offset of 1, as the first value is always 0, and the resulting number of jobs decremented by one.
 
 \subsubsection{Testing}
-The scan did not show improvements from switching from 1 to 2 threads in every number iterations, with the added management costs being higher than the gains up to 1.000.000 iterations (the maximum we've tested). But from upward of 2 threads, the gains were linear up to 32 threads, with very small improvement from 32 to 64 threads.
+
+The scan did not show improvements from switching from 1 to 2 threads in every number of jobs, with the added management costs being higher than the gains up to 1.000.000 jobs (the maximum we've tested). But from upward of 2 threads, the gains were linear up to 32 threads, with very small improvement from 32 to 64 threads.
+
+Again, similarly to reduce (\ref{reduce}), the profiling showed similar results to map (\ref{map}).
 
 \section{Extra Parallel Patterns}
 
