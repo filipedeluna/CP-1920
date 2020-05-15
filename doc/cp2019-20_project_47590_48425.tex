@@ -168,6 +168,8 @@ Since the implementation is very similar to pack's (\ref{pack}), the results wer
 
 % Scatter --------------------------------------------------------------	
 \subsection{The Scatter Pattern}
+\label{scatter}
+
 \subsubsection{Implementation}
 
 Our default implementation of scatter is the atomic scatter which is briefly mentioned in McCool's book, making us have to come up with our own solution. We found this variation of scatter particularly hard to implement due to not being able to use \textit{OpenMP's} \textit{atomic} pragma, as it does not work with \textit{memcpy}. Since \textit{memcpy} writes data block by block, two parallel writes can cause a corruption as the destiny can have part of the information from the first job and part from the second.
@@ -200,7 +202,48 @@ For testing, a group of three workers were chosen that: multiplied the value by 
 
 The speedup was also pretty linear until the number of physical threads was reached, showing a little more improvement with 128 threads due to the parallel slack phenomenon mentioned earlier in scan (\ref{scan}). However, the algorithm only started showing consistent results starting with 100.000 iterations, meaning that this is when the management cost stops affecting the gains obtained from parallelizing.
 
+% Farm --------------------------------------------------------------	
+\subsection{The Farm Pattern}
+\subsubsection{Implementation}
+
+The farm pattern is very hard or next to impossible to implement in \textit{OpenMP}, since we can't have a fine-grained control of threads. \textit{OpenMP} dynamically distributes and hands work to threads. We can ask \textit{OpenMP} to use $ n $ threads in a computation, but we can't choose which threads will be used, and controlling them is hard.
+
+\textit{OpenMP} contains a \textit{task} pragma that is an implementation of a farm pattern \cite{jlfarm}. With \textit{task} we can add computational tasks to a queue from which \textit{OpenMP} will dynamically distribute throughout all the threads however it sees fit.
+
+This is the implementation we went for. For each job we create a \textit{task} and \textit{OpenMP} distributes it through the number of threads we set. The loop that creates all the \textit{tasks} needs to be executed by a single thread who acts as a master, and afterwards it will also become a slave, joining all the other threads in consuming \textit{tasks}.
+
+\subsubsection{Testing}
+
+With an added weight of 250 iterations in every worker, we saw a linear negative speedup as we increased the number of threads, throughout all the numbers of iterations. When the weight was increased to 15.000 iterations, we could observe a linear speedup up to 16 cores. With upwards of 16 cores, the speedup would exponentially negatively grow, with 64 threads taking more time than a single one. But, in the case of 128 threads, it lowers the time exponentially and is almost at its fastest.
+
+After some investigation, we've traced the culprit of this odd phenomenon - \textit{OpenMP} itself - as it increases the time to create a \textit{task} as more threads are used \cite{granularity}. Another interesting feature is "\textit{task} throttling", an internal mechanism in \textit{OpenMP} that forces \textit{task} serialization after a specific number of \textit{tasks} have been created \cite{granularity}. As to why using 128 threads results in an incredible speedup, we believe it is attributed to the fact that, besides of the expected parallel slack, increasing the number of threads also increases the maximum number of \textit{tasks} before it begins \textit{task} throttling.
+
+Since this implementation has little to no significant serial work, we can expect it to be embarrassingly parallel. We confirm this when we run the profiler and consistently upwards of 90\% of the time in parallel work.
+
+We can conclude that \textit{OpenMP} isn't suited to implement farm and that tasks come with a heavy management cost. 
+
 \section{Extra Parallel Patterns}
+
+% Priority Scatter --------------------------------------------------------------	
+\subsection{The Priority Scatter Pattern}
+\subsubsection{Implementation}
+
+In this version of scatter, the order of the job in the array dictates its priority. This pattern is briefly discussed in the book \cite{mccool}. 
+
+The implementation of this pattern was pretty straightforward as it's essentially an \textit{OpenMP} \textit{for} construct with an \textit{ordered} construct, forcing it to execute the iterations in order \cite{omporder}.
+Our solution was to use a custom quicksort that ordered the filter and the reordering of positions was reflected on the source array. By doing so, it was possible to add a conditional \textit{critical} pragma when the next value in the filter is equal to the current. This results in a very heavy reduction of the use of the \textit{critical} pragma and a good parallel performance at the cost of the initial quicksort computation.
+
+\subsubsection{Testing}
+
+The added quicksort at the beginning turned this algorithm from $ O(n) $ into $ O(n\log_n) $, meaning the computation needed to be really intense in the parallel phase to make up for the added quicksort computation. 
+
+In our tests we made it possible to set the size of the destiny array. The probability of triggering a critical section is $ 1 / n $, with $ n $ being the number of destiny positions. But this does not mean $ 1 - 1 / n $ of the original speed, because the \textit{critical} section halts all the threads. 
+
+With a low destiny array of just 10 positions, we only managed a parallelization of around 5\% because we kept hitting the \textit{critical} section. After changing the destiny array size to $ n / 50 $, with $ n $ being the number of jobs, the profiler showed around 80\% parallelization time, due to hitting the \textit{critical} section much less.
+
+Since running with only 10 positions in the destiny array resulted in so many collisions, we also had to run a lower number of jobs and the resulting speedups weren't satisfactory as it only showed a significant speedup starting at 50.000 iterations and only up to 8 threads. After 8 threads, the effects of the \textit{critical} section overcame the added parallelization. With $ n / 50 $ positions in the destiny array, the algorithm ran a lot faster, but the speedup was relatively similar. 
+
+During testing, we concluded the reason for showing worse results with additional threads is due the \textit{critical} section halting more work and being a lot more complex as there are more threads to manage. This is also called "lock management overhead", which increases with the number of threads \cite{lockmanage}. Therefore, this algorithm does work, but does not scale well, at all and its performance is completely tied to the size of the destiny array.
 
 \section{Acknowledgments}
 
