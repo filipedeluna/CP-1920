@@ -130,6 +130,22 @@ The reason behind the performance being equal or worse with two threads is due t
 
 Again, similarly to reduce (\ref{reduce}), the profiling showed similar results to map (\ref{map}). With the expected parallelism with 2 threads, as mentioned in the last paragraph, resulting in only ~33\%. We conclude this algorithm is not a good solution for very low thread counts.
 
+% Pack	
+\subsection{The Pack Pattern}
+\subsubsection{Implementation}
+
+Even though we studied McCool's pack chapters from the book, most of our ideas for pack came from his article on DrDobb's on pack \cite{dobbpack}. The main idea is that pack is not a fundamental pattern, meaning it can be implemented by combining others. 
+
+We chose to do an exclusive scan on the filter so that the resulting array would give us the correct position in the destiny array for each item of the source array that is allowed in the filter. We then run a map on the source array, and for each position we check if it is allowed in the filter and, if so, we send it to the position given by the scanned filter array.
+
+\subsubsection{Testing}
+
+The pack results seem, at first, really odd as it gets worse performance as the core count grows up to around 500.000 jobs. And, even between 500.000 and 1.000.000 jobs, it shows a linear speed up from 2 to 8 cores and then it starts showing a linear negative speedup.
+
+On closer inspection, we notice that pack does not use a worker, but a \textit{memcpy} instruction that is only executed $ n / 2 $ times, with $ n $ being the number of jobs. This means that not only is this job not affected by the weight, but also has a lot lighter computations. Even though it uses a scan, the worker used for the scan is custom and does not include weight.
+
+This results in a lot faster computation, making the algorithm finish much faster than the others for the same number of jobs. And, this also means that even though it shows a good parallelization percentage with upwards of 80\% in the profiler, it does not spend enough time running to make up for the management cost of a high number of threads. Since it becomes impossible to increase the number of iterations due to RAM limitations, we can only "guess" that it would need a more demanding workload of 10.000.000+ jobs to start showing a linear speedup up to the number of threads of cluster.
+
 \section{Extra Parallel Patterns}
 
 \section{Acknowledgments}
