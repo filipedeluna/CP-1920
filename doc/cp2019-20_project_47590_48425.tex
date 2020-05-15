@@ -117,6 +117,8 @@ Since the computational weight of the serial computation is not significant, as 
 
 % Scan --------------------------------------------------------------		
 \subsection{The Scan Pattern}
+\label{scan}
+
 \subsubsection{Implementation}
 
 The scan pattern was the most complicated to implement of all the mandatory algorithms. There were many possibilities but we eventually decided on the inclusive three-phase algorithm shown on McCool's book on chapter 5.5 \cite{mccool}. The first two-phases are almost identical to the reduce pattern mentioned earlier in reduce (\ref{reduce}), with the third one using their result of the first value of each slice to compute the following values. Like in reduce, the second phase is serial and has as many computations as the amount of threads executing the algorithm. 
@@ -173,11 +175,30 @@ Our default implementation of scatter is the atomic scatter which is briefly men
 Our solution was to use a custom quicksort that ordered the filter and the reordering of positions was reflected on the source array. By doing so, it was possible to add a conditional \textit{critical} pragma when the next value in the filter is equal to the current. This results in a very heavy reduction of the use of the \textit{critical} pragma and a good parallel performance at the cost of the initial quicksort computation.
 
 \subsubsection{Testing}
-The added quicksort at the beggining turned this algorithm from $ O(n) $ into $ O(n\log_n) $, meaning the computation needed to be really intense in the parallel phase to make up for the quicksorting of the int array with the positions. 
 
-In our tests we made it possible to set the size of the destiny array. The number of destiny positions gives us the probability of a hitting a collision that results on using the \textit{critical} pragma. With a low destiny array of just 10 positions, we only managed a parallelization of around 5\% because we kept hitting the \textit{critical} section. After changing the destiny array size to $ n / 2 $, with $ n $ being the number of jobs, 
+The added quicksort at the beginning turned this algorithm from $ O(n) $ into $ O(n\log_n) $, meaning the computation needed to be really intense in the parallel phase to make up for the added quicksort computation. 
 
-Since this algorithm was more complex, we had to run less iterations to keep the time down. An improvement wasn't visible until we reached 10.000 jobs, and the speedup still was really low and turning negative starting from 16 threads. At 50.000 jobs, the speedup started improving but still wasn't enough to make up for 
+In our tests we made it possible to set the size of the destiny array. The probability of triggering a critical section is $ 1 / n $, with $ n $ being the number of destiny positions. But this does not mean $ 1 - 1 / n $ of the original speed, because the \textit{critical} section halts all the threads. 
+
+With a low destiny array of just 10 positions, we only managed a parallelization of around 5\% because we kept hitting the \textit{critical} section. After changing the destiny array size to $ n / 50 $, with $ n $ being the number of jobs, the profiler showed around 80\% parallelization time, due to hitting the \textit{critical} section much less.
+
+Since running with only 10 positions in the destiny array resulted in so many collisions, we also had to run a lower number of jobs and the resulting speedups weren't satisfactory as it only showed a significant speedup starting at 50.000 iterations and only up to 8 threads. After 8 threads, the effects of the \textit{critical} section overcame the added parallelization. With $ n / 50 $ positions in the destiny array, the algorithm ran a lot faster, but the speedup was relatively similar. 
+
+During testing, we concluded the reason for showing worse results with additional threads is due the \textit{critical} section halting more work and being a lot more complex as there are more threads to manage. This is also called "lock management overhead", which increases with the number of threads \cite{lockmanage}. Therefore, this algorithm does work, but does not scale well, at all and its performance is completely tied to the size of the destiny array.
+
+% Pipeline --------------------------------------------------------------	
+\subsection{The Pipeline Pattern}
+\subsubsection{Implementation}
+
+The pipeline is an algorithm that does a collection of operations on a collection of data in order. The default pipeline implementation we chose was the map pipeline briefly discussed on McCool's book \cite{mccool}. This algorithm is just a succession of maps, with each map traversing all the data and executing the respective operation.
+
+\subsubsection{Testing}
+
+Since this algorithm relies on maps, which are embarrassingly parallel, it comes as no surprise that the profiler confirms this, with over 80\% of the time running in parallel.
+
+For testing, a group of three workers were chosen that: multiplied the value by two, incremented and then divided the result by two.
+
+The speedup was also pretty linear until the number of physical threads was reached, showing a little more improvement with 128 threads due to the parallel slack phenomenon mentioned earlier in scan (\ref{scan}). However, the algorithm only started showing consistent results starting with 100.000 iterations, meaning that this is when the management cost stops affecting the gains obtained from parallelizing.
 
 \section{Extra Parallel Patterns}
 
