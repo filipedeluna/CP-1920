@@ -283,6 +283,22 @@ With the default weight of 250 iterations, there was an acceptable linear speedu
 
 After raising the weight of the workers to 10.000 iterations the tests showed the expected linear speedup all the way to the number of threads on the machine (64). It's possible to conclude the necessity for such a high weight in a job to make up for the management cost is because, since the \textit{OpenMP's} \textit{parallel} construct is inside a for loop, the management cost is multiplied by the iterations of that same for loop.
 
+% Stencil --------------------------------------------------------------	
+\subsection{The Stencil Pattern}
+
+\subsubsection{Implementation}
+
+The stencil implementation was based on the one that is demonstrated in chapter 7.1 of McCool's book \cite{mccool}. Stencil is similar to a map, but every job is computed from the result of the computation of itself and the $ n $ jobs in its vicinity. It's a technique that is used in image manipulation software, for instance, so that a pixel gets a color that is the average of the pixels around it.
+
+The implementation was straightforward as it is essentially a map, but instead of just doing it's respective worker, it creates a temporary variable to hold the reduction from the value that is $ n $ positions behind it to the one that is $ n $ positions in front, with $ n $ being the size of the vicinity to take into account. After computing this reduction, it stores the value in its respective place of the destiny array.
+
+
+\subsubsection{Testing}
+
+For testing, we set the number of jobs in the vicinity to be computed to 5. This means that, unless we're at an edge, we
+
+As expected, this algorithm is embarrassingly parallel, with the profiler reporting around over 90\% time spent in parallel computations and shows a linear speedup up to 32 threads and a smaller speedup up to 128, due to parallel slack.
+
 \section{Acknowledgments}
 
 \bibliographystyle{IEEEtran}

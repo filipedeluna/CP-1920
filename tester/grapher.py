@@ -34,7 +34,7 @@ def create_graph(image_dir):
     ax = fig.add_subplot(111)
 
     for z in range(0, len(iterations)):
-        ax.plot(threads, results[z], label=f"{iterations[z]} Iterations")
+        ax.plot(threads, results[z], label=f"{iterations[z]} Jobs")
 
     ax.set_xscale("log", basex=2)
     ax.set_xticks(threads)
