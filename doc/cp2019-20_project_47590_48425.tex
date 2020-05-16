@@ -1,4 +1,4 @@
-\documentclass[9pt,journal]{IEEEtran}
+\documentclass[10pt,journal]{IEEEtran}
 
 \ifCLASSOPTIONcompsoc
   % IEEE Computer Society needs nocompress option
@@ -61,17 +61,15 @@
 \section{Introduction}
 For the Concurrency and Parallelism course of the Integrated Masters in Computer Science at FCT-NOVA, we were asked to implement a series of parallel patterns using the \textit{OpenMP} API. The following document describes our implementation of these patterns, the results we’ve achieved during the testing phase and our interpretation of these same results.
 
-\section{Tools Used}
+\subsection{Tools Used}
 
 We developed the project in \textit{Linux} using \textit{C} language and the \textit{GCC} compiler, writing our code in \textit{Clion} and using \textit{CMake} for building. We used the standard \textit{GNU} argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
 
 Our most important tool was \textit{OpenMP} \cite{omp}, a multi-platform API that allows the user to add pragmas to programming blocks in order to parallelize code. The main perk of \textit{OpenMP} is that parallel code ends up looking extremely similar to serial code, meaning serial execution is still possible.
 
-\section{Testing Methodology}
+\subsection{Testing Methodology}
 
-We have created two python scripts to aid us in testing.
-
-The first script, named “tester”, runs the program several times with the appropriate flags and saves the results. The tester can be configured to run a specific algorithm or all with a set of numbers of jobs, number of threads and, lastly, the number of repetitions for every test/number of jobs/thread combo. From these repetitions, we extract a mean value for a more accurate result. All these results are written to a file of our choosing.
+We have created two python scripts to aid us in testing. The first script, named “tester”, runs the program several times with the appropriate flags and saves the results. The tester can be configured to run a specific algorithm or all with a set of numbers of jobs, number of threads and, lastly, the number of repetitions for every test/number of jobs/thread combo. From these repetitions, we extract a mean value for a more accurate result. All these results are written to a file of our choosing.
 
 The tester also allowed for configuring tests to run with different sets of numbers of jobs, since some algorithms run a lot faster than others and we needed to keep overall testing times low.  Another parameter, was “weight”, which activated a flag in the program that added a for loop with a configurable number of iterations for every worker. Ideally, we would increase the number of total jobs, but this wasn't really viable as the worker was really light and for the number of needed jobs, it would result in running out of RAM. This was necessary since some algorithms had a very significant management cost and it allowed us to simulate a heavier work load in order to visualize their gains more accurately. 
 
@@ -258,7 +256,7 @@ As expected, this algorithm is embarrassingly parallel, with the profiler report
 \subsection{The Serial Pipeline Pattern}
 
 \begin{figure}[htbp]
-	\centerline{\includegraphics[scale=0.1]{img/serialpipeline.png}}
+	\centerline{\includegraphics[scale=0.15]{img/serialpipeline.png}}
 	\caption{ A serial pipeline. \cite{pipelineoregon} }
 	\label{serialpipe}
 \end{figure}
@@ -306,7 +304,7 @@ Since this algorithm is a variation of a map, it's embarrassingly parallel and t
 \subsubsection{Implementation}
 
 \begin{figure}[htbp]
-	\centerline{\includegraphics[scale=0.1]{img/parprefix.png}}
+	\centerline{\includegraphics[scale=0.15]{img/parprefix.png}}
 	\caption{ Parallel-Prefix without a power of 2. }
 	\label{parprefix}
 \end{figure}
@@ -332,17 +330,40 @@ We can conclude that the multiple maps created ($ 2n $, with $ n $ being the tre
 % Recurrence --------------------------------------------------------------	
 \subsection{The Recurrence Pattern}
 
+\begin{figure}[htbp]
+	\centerline{\includegraphics[scale=0.25]{img/recurrence.png}}
+	\caption{ Parallel-Prefix without a power of 2. }
+	\label{parprefix}
+\end{figure}
+
 \subsubsection{Implementation}
+
+This pattern's implementation was based on the one present in chapter 7.5 of McCool's book \cite{mccool}. In our implementation, the input array is split in two and the operations are done with a hyperplane sweeping through them, our implementation is only two-dimensional. In the end, the amount of operations executed is $ (n / 2)^2 $, with $ n $ being the amount of jobs. 
+
+The implementation is basically a succession of maps, with each map referring to a diagonal hyperplane. 
 
 \subsubsection{Testing}
 
-% Quick-Sort --------------------------------------------------------------	
+As the hyperplane is $ O(n^2) $ complexity, the amount of jobs for the test was greatly reduced, but the results were as expected, with a linear speedup up to the number of physical threads (64), and the profiler reporting around 90\% of time spent in parallel computation.
+
+% Quick-Sort ----------------------------------------------		----------------	
 \subsection{The Quick-Sort Algorithm}
 
 \subsubsection{Implementation}
 
+Our quick-sort implementation was basically a translation of the pseudo-code present in the Introduction to Algorithms book to \textit{C} with \textit{OpenMP} \cite{introalgs}. Unfortunately, comparison implementation varies with the type of data, as floats and integers, for example, need different algorithms for comparison. So, we decided to only implement integer comparison.
+
+We used the \textit{OpenMP} \textit{task} pragma in the recursive calls. But we realized how much management cost was added by creating \textit{tasks} for small partitions. So we created a threshold, from which smaller partitions would be serialized in the parent thread instead of handled in a new \textit{task}.
+
+A second implementation of quicksort was created and used for scatter (\ref{scatter}), as mentioned before. It's extremely similar with the exception that it sorts the first input array and reproduces the order in the second input array.
+
 \subsubsection{Testing}
 
+We tested multiple values for the threshold and found out 1000 was what worked best. The gains were very considerable, as the algorithm not only ran over 20 times faster in some instances, but also finally started showing speedup as we increased the thread count.
+
+We observed a linear speedup up to 16 threads, with a small improvement with 32 starting at 500.000 jobs, afterwards the performance dropped exponentially. As we tested with much higher job numbers, the speedup became more significant, this is due to the threshold, that although improves speed, limits parallelization at lower job numbers. This was further confirmed after we increased the threshold to 10.000, which started paying off at 5.000.000 jobs.
+
+We conclude that this algorithm shows great performance and parallelization, with the profiler reporting over 80\% parallelization. But the threshold optimization must be tuned accordingly or dynamic.
 
 \section{Acknowledgments}
 
