@@ -311,17 +311,23 @@ Since this algorithm is a variation of a map, it's embarrassingly parallel and t
 	\label{parprefix}
 \end{figure}
 
-The parallel-prefix is an algorithm that implements the scan pattern. Our implementation of the parallel-prefix algorithm was based on the slides by David Walker from Princeton University  \cite{parprefix}. This algorithm maps an array of jobs to the bottom of a tree and does two passes - one up pass and one down pass. The first pass computes the result of the computations bottom-up, while the second one traverses the tree top-down to compute the prefixes - which are basically the aggregated value from the node at the left. At the leafs, we can compute the result of the operation involving the sum (which is the respective value in the source array at this level) and the prefix, to get the aggregated value of the scan up until that position.
+The parallel-prefix is an algorithm that implements the scan pattern. Our implementation of the parallel-prefix algorithm was based on the slides by David Walker from Princeton University \cite{parprefix}. This algorithm maps an array of jobs to the bottom of a tree and does two passes - one up pass and one down pass. The first pass computes the result of the computations bottom-up, while the second one traverses the tree top-down to compute the prefixes - which are basically the aggregated value from the nodes at the left. At the leafs, we can compute the result of the operation involving the sum (which is the respective value in the source array at this level) and the prefix, to get the aggregated value of the scan up until that position.
 
-The parallel prefix was an extremely difficult algorithm to implement since we wished for it to be compatible with any number of jobs, not just powers of 2, as shown in figure \ref{parprefix}, where the we divide the number of jobs between the last two layers. 
+The parallel prefix was an extremely difficult algorithm to implement since we wished for it to be compatible with any number of jobs, not just powers of 2, as shown in figure \ref{parprefix} where the we divide the number of jobs between the last two layers. Our version slightly simplified the one from Princeton University's slides \cite{parprefix} by removing the unnecessary range fields by computing positions on the go.
 
 Essentially, a tree will have either $ 2n - 1 $ or $ 2(n - 1) $ elements, where $ n $ is the number of jobs and the respective height will be $ \log_2(m) + 1 $ where $ m $ is the number of elements. Our implementation is basically succession of maps, with each one being respective to a level of the tree. At each node we make a few verifications like if, the node is at the last level or if it is a leaf and then we compute the sum or the prefix value, depending on the pass. 
 
 \subsubsection{Testing}
 
-Like many other algorithms before, the Parallel-Prefix becomes almost embarrassingly parallel when the number of jobs greatly exceeds the number of threads, since the computations at the upper levels stop being so significant. As expected, for 10.000 jobs, the profiler shows that around 90\% of the time, the algorithm is running in parallel.
+Like other map-based algorithms before, the Parallel-Prefix becomes almost embarrassingly parallel when the number of jobs greatly exceeds the number of threads, since the computations at the upper levels of the tree, where there are less jobs than threads, stop being so significant. As expected, for 10.000 jobs, the profiler shows that for around 90\% of the time, the algorithm is running in parallel.
 
+Aa the parallel-prefix algorithm needs a lot of additional memory to be able to store the tree, the number of jobs had to be reduced so the heap does not get full. 
 
+After the first tests, with a weight of 250, we can see an acceptable speedup to 16 threads, but only starting at 50.000 jobs, the maximum we've tested for this algorithm.  As the number of jobs decreases, so do the gains from parallelizing, eventually turning exponentially negative from upwards of 4 threads.
+
+When we raise the weight to 1500, we can see that even at 500 jobs, it becomes worth parallelizing it with up to 8 threads. For 50.000 jobs, we can see the now expected linear speedup up to the number of physical threads of the machine. As seen on other algorithms, as the weight of the job grows, so do the gains from parallelizing it, due to overcoming the management cost.
+
+We can conclude that the multiple maps created ($ 2n $, with $ n $ being the tree height) add a lot to the management cost of this algorithm. Even though this algortihm does show great speedups, it only does so when the computational weight of the jobs it is doing is relatively demanding.
 
 \section{Acknowledgments}
 
