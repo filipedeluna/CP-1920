@@ -41,7 +41,7 @@
 \begin{document}
 \bstctlcite{IEEEexample:BSTcontrol}
 
-\title{Project 1 -- Parallel Patterns with C and OpenMP}
+\title{Parallel Patterns with C and OpenMP}
 
 
 \author{
@@ -63,9 +63,9 @@ For the Concurrency and Parallelism course of the Integrated Masters in Computer
 
 \section{Tools Used}
 
-We developed the project in \textit{Linux} using \textit{C} language and the \textit{GCC} compiler, writing our code in Clion and using \textit{CMake} for building. We used the standard \textit{GNU} argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
+We developed the project in \textit{Linux} using \textit{C} language and the \textit{GCC} compiler, writing our code in \textit{Clion} and using \textit{CMake} for building. We used the standard \textit{GNU} argument parser (argp) \cite{argp}, to make testing a lot easier by adding flags and arguments to our program such as: test id, debug mode, thread count and weight enabling.
 
-Our most important tool was \textit{OpenMP} \cite{omp}, a multiplatform API that allows the user to add pragmas to programming blocks in order to parallelize code. The main perk of \textit{OpenMP} is that parallel code ends up looking extremely similar to serial code, meaning serial execution is still possible.
+Our most important tool was \textit{OpenMP} \cite{omp}, a multi-platform API that allows the user to add pragmas to programming blocks in order to parallelize code. The main perk of \textit{OpenMP} is that parallel code ends up looking extremely similar to serial code, meaning serial execution is still possible.
 
 \section{Testing Methodology}
 
@@ -79,9 +79,9 @@ The second python script, the “grapher”, reads the output file with the resu
 
 Since our computers had a limited core count, we couldn’t get a realistic perception of the gains that the parallelization of these patterns could allow for. So we ran our tests in the cluster maintained by our Faculty’s Department of Informatics. The particular node we used for tests had 64 cores.
 
-After inspecting the profiler results in the 16 thread CPU, we noticed that the added weight resulted in a very significant reduction of the percentage of time spent in creating the threads. So we decided to run all tests with an added weight of 250 for iterations on the cluster.
+For profiling we ran the \textit{CLion} default profiler (\textit{perf} on our Linux systems) on a machine with 16 threads (8 physical + 8 logical). Profiling was incredibly useful to get an idea of how much the management cost was, and how much time was spent doing serial work.
 
-For profiling we ran the \textit{CLion} profiler on a machine with 16 threads (8 physical + 8 logical). Profiling was incredibly useful to get an idea of how much the management cost was, and how much time was spent doing serial work.
+After inspecting the profiler results in the 16 thread CPU, we noticed that the added weight resulted in a very significant reduction of the percentage of time spent in creating the threads. So we decided to run all tests with an added weight of 250 for iterations on the cluster.
 
 To get realistic results for each thread count, we disabled \textit{OpenMP's} default dynamic scheduling and forced it to static. This means that the number of threads we specified will actually be used, instead of \textit{OpenMP} dynamically optimizing the thread count for the given workload. Even though this might result in worse results and isn't suitable for a real live application, it is ideal to obtain the accurate results we need for our tests.
 
@@ -292,12 +292,36 @@ The stencil implementation was based on the one that is demonstrated in chapter 
 
 The implementation was straightforward as it is essentially a map, but instead of just doing it's respective worker, it creates a temporary variable to hold the reduction from the value that is $ n $ positions behind it to the one that is $ n $ positions in front, with $ n $ being the size of the vicinity to take into account. After computing this reduction, it stores the value in its respective place of the destiny array.
 
+\subsubsection{Testing}
+
+For testing, we set the number of jobs in the vicinity to be computed to 5. This means that, unless we're at an edge, we reduce 11 jobs for each job, which results in a lot more computations for each job. To account for this, less total jobs were ran.
+
+At 50.000 jobs, the cost of management was compensated for and it was possible to observe an almost linear speedup up to the number of physical threads in the machine (64).
+
+Since this algorithm is a variation of a map, it's embarrassingly parallel and the profiler shows over 90\% of the time is spent in parallel computation.
+
+% Parallel Prefix --------------------------------------------------------------	
+\subsection{The Parallel Prefix Algorithm}
+
+\subsubsection{Implementation}
+
+\begin{figure}[htbp]
+	\centerline{\includegraphics[scale=0.1]{img/parprefix.png}}
+	\caption{ Parallel-Prefix without a power of 2. }
+	\label{parprefix}
+\end{figure}
+
+The parallel-prefix is an algorithm that implements the scan pattern. Our implementation of the parallel-prefix algorithm was based on the slides by David Walker from Princeton University  \cite{parprefix}. This algorithm maps an array of jobs to the bottom of a tree and does two passes - one up pass and one down pass. The first pass computes the result of the computations bottom-up, while the second one traverses the tree top-down to compute the prefixes - which are basically the aggregated value from the node at the left. At the leafs, we can compute the result of the operation involving the sum (which is the respective value in the source array at this level) and the prefix, to get the aggregated value of the scan up until that position.
+
+The parallel prefix was an extremely difficult algorithm to implement since we wished for it to be compatible with any number of jobs, not just powers of 2, as shown in figure \ref{parprefix}, where the we divide the number of jobs between the last two layers. 
+
+Essentially, a tree will have either $ 2n - 1 $ or $ 2(n - 1) $ elements, where $ n $ is the number of jobs and the respective height will be $ \log_2(m) + 1 $ where $ m $ is the number of elements. Our implementation is basically succession of maps, with each one being respective to a level of the tree. At each node we make a few verifications like if, the node is at the last level or if it is a leaf and then we compute the sum or the prefix value, depending on the pass. 
 
 \subsubsection{Testing}
 
-For testing, we set the number of jobs in the vicinity to be computed to 5. This means that, unless we're at an edge, we
+Like many other algorithms before, the Parallel-Prefix becomes almost embarrassingly parallel when the number of jobs greatly exceeds the number of threads, since the computations at the upper levels stop being so significant. As expected, for 10.000 jobs, the profiler shows that around 90\% of the time, the algorithm is running in parallel.
 
-As expected, this algorithm is embarrassingly parallel, with the profiler reporting around over 90\% time spent in parallel computations and shows a linear speedup up to 32 threads and a smaller speedup up to 128, due to parallel slack.
+
 
 \section{Acknowledgments}
 
