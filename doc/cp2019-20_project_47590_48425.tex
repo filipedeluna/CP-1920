@@ -156,6 +156,8 @@ This results in a lot faster computation, making the algorithm finish much faste
 
 % Gather --------------------------------------------------------------	
 \subsection{The Gather Pattern}
+\label{gather}
+
 \subsubsection{Implementation}
 
 Gather's implementation was very similar to pack's (\ref{pack}), with a \textit{memcpy} instruction and a map. The gather was based on the idea's in \textit{Dr. Dobb's} that a gather is parallel read of elements of memory that subsequently writes said values to another array according to a filter. This filter holds the position in the source array of the element to write for each position, with each index $ i $ of the filter mapping to the same index $ i $ of the destiny array.
@@ -228,22 +230,54 @@ We can conclude that \textit{OpenMP} isn't suited to implement farm and that tas
 \subsection{The Priority Scatter Pattern}
 \subsubsection{Implementation}
 
-In this version of scatter, the order of the job in the array dictates its priority. This pattern is briefly discussed in the book \cite{mccool}. 
+In this version of scatter, the order of the job in the array dictates its priority. This pattern is briefly discussed in the book \cite{mccool}. This pattern does not take into account collisions as subsequent writes will overwrite previous data and yield a deterministic result based on the order.
 
 The implementation of this pattern was pretty straightforward as it's essentially an \textit{OpenMP} \textit{for} construct with an \textit{ordered} construct, forcing it to execute the iterations in order \cite{omporder}.
-Our solution was to use a custom quicksort that ordered the filter and the reordering of positions was reflected on the source array. By doing so, it was possible to add a conditional \textit{critical} pragma when the next value in the filter is equal to the current. This results in a very heavy reduction of the use of the \textit{critical} pragma and a good parallel performance at the cost of the initial quicksort computation.
 
 \subsubsection{Testing}
 
-The added quicksort at the beginning turned this algorithm from $ O(n) $ into $ O(n\log_n) $, meaning the computation needed to be really intense in the parallel phase to make up for the added quicksort computation. 
+This pattern shows consistently worse performance for all numbers of jobs as the number of threads increases, up to 1.000.000 iterations. We can attribute this to the fact that it shares the same issue as gather \ref{gather}, as it behaves similarly. This issue, is the fact that \textit{memcpy} is too fast and the number of jobs needed to make up for the management cost of the added threads is enormous.
 
-In our tests we made it possible to set the size of the destiny array. The probability of triggering a critical section is $ 1 / n $, with $ n $ being the number of destiny positions. But this does not mean $ 1 - 1 / n $ of the original speed, because the \textit{critical} section halts all the threads. 
+As expected, if we add a for loop with 1000 iterations the management cost stops being relevant and we get a continuous linear speedup up to the number of physical cores. 
 
-With a low destiny array of just 10 positions, we only managed a parallelization of around 5\% because we kept hitting the \textit{critical} section. After changing the destiny array size to $ n / 50 $, with $ n $ being the number of jobs, the profiler showed around 80\% parallelization time, due to hitting the \textit{critical} section much less.
+% Item-Bound Pipeline --------------------------------------------------------------	
+\subsection{The Item-Bound Pipeline Pattern}
+\label{itembound}
 
-Since running with only 10 positions in the destiny array resulted in so many collisions, we also had to run a lower number of jobs and the resulting speedups weren't satisfactory as it only showed a significant speedup starting at 50.000 iterations and only up to 8 threads. After 8 threads, the effects of the \textit{critical} section overcame the added parallelization. With $ n / 50 $ positions in the destiny array, the algorithm ran a lot faster, but the speedup was relatively similar. 
+\subsubsection{Implementation}
 
-During testing, we concluded the reason for showing worse results with additional threads is due the \textit{critical} section halting more work and being a lot more complex as there are more threads to manage. This is also called "lock management overhead", which increases with the number of threads \cite{lockmanage}. Therefore, this algorithm does work, but does not scale well, at all and its performance is completely tied to the size of the destiny array.
+This implementation of the pipeline was based on slides explaining the pipeline pattern from the University of Oregon \cite{pipelineoregon}. It's item-bound nature basically means a thread takes a job and executes all the workers at once on it, taking advantage of data locality.
+
+The implementation is pretty straightforward as it is basically an \textit{OpenMP} \textit{for} construct that at each job, executes all the workers.
+
+\subsubsection{Testing}
+
+As expected, this algorithm is embarrassingly parallel, with the profiler reporting around over 90\% time spent in parallel computations and shows a linear speedup up to 32 threads and a smaller speedup up to 128, due to parallel slack.
+
+% Serial Pipeline --------------------------------------------------------------	
+\subsection{The Serial Pipeline Pattern}
+
+\begin{figure}[htbp]
+	\centerline{\includegraphics[scale=0.1]{img/serialpipeline.png}}
+	\caption{ A serial pipeline. \cite{pipelineoregon} }
+	\label{serialpipe}
+\end{figure}
+
+\subsubsection{Implementation}
+
+Like the item-bound pipeline (\ref{itembound}), this implementation was based on slides  from the University of Oregon \cite{pipelineoregon}. The main purpose of this algorithm is to allow for various tasks (in this case a collection of workers that work on a single piece of data (job)) that cannot be parallelized, to run through a parallel pipeline. 
+
+As we can see from figure \ref{serialpipe}, the serial pipeline starts executing a job after the last one has executed its first worker. This means that it for the first and last $ n - 1 $ cycles, with $ n $ being the number of workers, it won't be able to make full use of it's parallelization potential. 
+
+Another problem with this pipeline is that it only makes sense to have as many threads as there are workers, and the number of workers limits the amount of threads it can make use of.
+
+The implementation is basically a for loop with an \textit{OpenMP} \textit{for} construct inside. The outer for accounts for the amount of steps the total algorithm takes from the first job's first worker to the last job's last worker. The inner \textit{for} construct does runs the expected worker in each data for this step.
+
+\subsubsection{Testing}
+
+For testing, the number of workers were set to 64 (the maximum number of physical threads on the machine). Since the number of jobs is considerably larger than the number of workers, the first and last $ n - 1 $ cycles, mentioned earlier, don't make much of a difference.
+
+Since the number of workers is so large and the weight is tied to each worker, the weight iterations had to be lowered considerably.
 
 \section{Acknowledgments}
 
