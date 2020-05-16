@@ -277,7 +277,11 @@ The implementation is basically a for loop with an \textit{OpenMP} \textit{for} 
 
 For testing, the number of workers were set to 64 (the maximum number of physical threads on the machine). Since the number of jobs is considerably larger than the number of workers, the first and last $ n - 1 $ cycles, mentioned earlier, don't make much of a difference.
 
-Since the number of workers is so large and the weight is tied to each worker, the weight iterations had to be lowered considerably.
+The large number of workers makes this algorithm take a lot of time since, not only is the amount of work multiplied by the amount of workers, but also each worker has the inherent weight. So, to combat this, the number of jobs executed was heavily lowered to a maximum of 10.000.
+
+With the default weight of 250 iterations, there was an acceptable linear speedup up to 8 threads improvement starting at 500 jobs and up to 10.000.
+
+After raising the weight of the workers to 10.000 iterations the tests showed the expected linear speedup all the way to the number of threads on the machine (64). It's possible to conclude the necessity for such a high weight in a job to make up for the management cost is because, since the \textit{OpenMP's} \textit{parallel} construct is inside a for loop, the management cost is multiplied by the iterations of that same for loop.
 
 \section{Acknowledgments}
 
