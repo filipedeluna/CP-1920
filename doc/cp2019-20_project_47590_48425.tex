@@ -231,7 +231,7 @@ As expected, this algorithm is embarrassingly parallel, with the profiler report
 
 \begin{figure}[htbp]
 	\centerline{\includegraphics[scale=0.12]{img/serialpipeline.png}}
-	\caption{ A serial pipeline. \cite{pipelineoregon} }
+	\caption{ A serial pipeline. Source: \cite{pipelineoregon}.  }
 	\label{serialpipe}
 \end{figure}
 
@@ -265,13 +265,19 @@ For testing, we set the number of jobs in the vicinity to be computed to 5. This
 At 50.000 jobs, the cost of management was compensated for and it was possible to observe an almost linear speedup up to the number of physical threads in the machine (64). Since this algorithm is a variation of a map, it's also embarrassingly parallel, with the profiler showing over 90\% of the time is spent in parallel computation.
 
 % Parallel Prefix --------------------------------------------------------------	
-\subsection{The Parallel Prefix Algorithm}
+\subsection{The Parallel-Prefix Algorithm}
+
+\begin{figure}[htbp]
+	\centerline{\includegraphics[scale=0.10]{img/parprefix.png}}
+	\caption{ Our Parallel-Prefix implementation.  }
+	\label{parprefixpic}
+\end{figure}
 
 \subsubsection{Implementation}
 
 The parallel-prefix is an algorithm that implements the scan pattern. Our implementation was based on the slides by David Walker from Princeton University \cite{parprefix}. It maps an array of jobs to the bottom of a tree and does two passes - one up pass and one down pass. The first pass computes the result of the computations bottom-up, while the second one traverses the tree top-down to compute the prefixes - which are basically the aggregated values from the nodes at the left. At the leafs, we can compute the result of the operation involving the sum (the respective value in the source array at this level) and the prefix, to get the aggregated value of the scan up until that position.
 
-Our implementation is compatible with any number of jobs, not just powers of 2, as we map the number of jobs to the last two layers instead of just the last. Our version also slightly simplified the one from Princeton University's slides \cite{parprefix}, by removing the unnecessary range fields and computing positions on the go.
+Our implementation is compatible with any number of jobs, not just powers of 2, as seen on figure \ref{parprefixpic}, as we map the number of jobs to the last two layers instead of just the last. Our version also slightly simplified the one from Princeton University's slides \cite{parprefix}, by removing the unnecessary range fields and computing positions on the go.
 
 Essentially, a tree will have either $ 2n - 1 $ or $ 2(n - 1) $ elements, with $ n $ jobs and the respective height will be $ \log_2(m) + 1 $ with $ m $ elements. Our implementation is basically a succession of maps, with each one being respective to a level of the tree. At each node we make a few verifications like if the node is at the last level or if it is a leaf, and then we compute the sum or the prefix value, depending on the pass. 
 
@@ -309,7 +315,7 @@ A second implementation of quick-sort was created and used for scatter (\ref{sca
 
 We tested multiple values for the threshold and decided upon 1000. The gains were very considerable, as the algorithm not only ran over 20 times faster in some instances, but also finally started showing speedup as we increased the thread count.
 
-We observed a linear speedup up to 16 threads, with a small improvement with 32 starting at 500.000 jobs. Afterwards, the performance dropped exponentially. As we tested with much higher job numbers, the speedup became more significant, this is due to the threshold, that although improves speed, limits parallelization at lower job numbers. This was further confirmed after we increased the threshold to 10.000, which started paying off at 5.000.000 jobs. We conclude that this algorithm shows great performance and parallelization, with the profiler reporting over 80\% parallelization. But the threshold optimization must be tuned accordingly or dynamic.
+We observed a linear speedup up to 16 threads, with a small improvement with 32 starting at 500.000 jobs. Afterwards, the performance dropped exponentially. As we tested with much higher job numbers, the speedup became more significant, this is due to the threshold, that although improves speed, limits parallelization at lower job numbers. This was further confirmed after we increased the threshold to 10.000, which started paying off at 5.000.000 jobs. We conclude that this algorithm shows great performance and parallelization, with the profiler reporting over 80\% parallelization. But the threshold optimization must either be tuned accordingly or dynamic.
 
 \section{Acknowledgments}
 
@@ -317,7 +323,7 @@ Even though, to my knowledge, we did not contact anyone directly, doing so wasn'
 
 \section{Work Division}
 
-The work division for the project implementation was, unfortunately, me (Filipe) doing around 95\% of the work. As for the report, Gabriel unfortunately decided, at the last minute, not to contribute, as he wished to forfeit the course.
+The work division for the project implementation was, unfortunately, me (Filipe) doing around 95\% of the work, as most of his contributions were poorly implemented and later discarded or done under my guidance. As for the report, Gabriel unfortunately decided, at the last minute, not to contribute, as he wished to forfeit the course.
 
 \bibliographystyle{IEEEtran}
 \bibliography{IEEEabrv,biblio}{}
