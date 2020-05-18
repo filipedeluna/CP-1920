@@ -69,7 +69,7 @@ We have created two python scripts to aid us in testing. The first script, named
 
 The tester also allowed for configuring tests to run with different sets of numbers of jobs, since some algorithms run a lot faster than others and we needed to keep overall testing times low.  Another parameter, was “weight”, which activated a flag in the program that added a for loop with a configurable number of iterations to every worker. We tested all our worker-based patterns with a weight of 250 iterations. Ideally, we would increase the number of total jobs, but this wasn't really viable as the worker was really light and for the number of needed jobs, it would result in running out of RAM. This was necessary since some algorithms had a very significant management cost and it allowed us to simulate a heavier work load in order to visualize their gains more accurately. 
 
-The second python script, the “grapher”, reads the output file with the results and creates a graph, using Matplotlib \cite{matplotlib}, for each test, in order to help us visualize the data. 
+The second python script, the “grapher”, reads the output file with the results and creates a graph, using \textit{Matplotlib} \cite{matplotlib}, for each test, in order to help us visualize the data. 
 
 Since our computers had a limited core count, we couldn’t get a realistic perception of the gains that the parallelization of these patterns could allow for. So we ran our tests in the cluster maintained by our Faculty’s Department of Informatics. The particular node we used for tests had 64 cores. 
 
@@ -91,7 +91,7 @@ The Map pattern was the simplest and most straightforward to implement as we can
 
 With 10.000 jobs, the algorithm showed a linear speedup up to 4 cores, with the speedup severely lowering when 8 were used. With upwards of 8 cores, we saw similar linear negative speedup, since the management cost for the creation of these threads was more than the time the threads actually ran their work. Only at 500.000 jobs did the algorithm start showing the expected linear speedup  up to the number of physical threads of the machine (64).
 
-With an added weight of 1000 for iterations, it's possible to observe, on the profiler, that the program spends ~93\% of the time running in parallel. By removing the added weight, we see a drop to ~68\% (the rest being managament cost). It's easy to conclude that the necessary workload per job for the pattern to become viable is not that big, as a for with 1000 iterations is an extremely fast computation in a modern chip.
+With an added weight of 1000 for iterations, it's possible to observe, on the profiler, that the program spends ~93\% of the time running in parallel. By removing the added weight, we see a drop to ~68\% (the rest being management cost). It's easy to conclude that the necessary workload per job for the pattern to become viable is not that big, as a for with 1000 iterations is an extremely fast computation in a modern chip.
 
 % Reduce --------------------------------------------------------------		
 \subsection{The Reduce Pattern}
