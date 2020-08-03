@@ -4,5 +4,3 @@ This repo contains my project assignment for the course of Concurrency and Paral
 
 The repo also contains Python scripts that test the program and plot its performance relative to the number of threads.
 
-Because we messed up and didn't fork the original the first time.
-
