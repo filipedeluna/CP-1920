@@ -1,38 +1,8 @@
-# README #
+# Parallel Patterns with C and OpenMP #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This repo contains my project assignment for the course of Concurrency and Paral-lelism 2019-20. For this project we were supposed to use the C programming language and Intel's OpenMP library to implement several parallel patterns and algortihms we deemed interesting (such as the parallel-prefix). I decided to use GNU Argp to parse the program arguments and make it extremely easier to understand how the program works.
 
-### What is this repository for? ###
-
-* This is the base code for the Home Project for CP 2019-20
-* Version 1.0
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
-
-### How do I get set up? ###
-
-* Summary of set up
-
-```
-git clone https://bitbucket.org/joaomlourenco/parallel_patterns_seq.git
-cd parallel_patterns_seq
-make
-```
-* How to run tests
-    * Example: `./main 1000000`
-    * Example with debug: `./main -d 10`
-    
-### How do I update? ###
-```
-git checkout master
-git pull https://bitbucket.org/joaomlourenco/parallel_patterns_seq.git 
-```
-
-### Who do I talk to? ###
-
-* Repo owner or admin
-João Lourenço <joao.lourenco@fct.unl.pt>
-
-### Why another project ###
+The repo also contains Python scripts that test the program and plot its performance relative to the number of threads.
 
 Because we messed up and didn't fork the original the first time.
 
